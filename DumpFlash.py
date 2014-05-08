@@ -310,9 +310,9 @@ class Flash:
 
 						if oob[0x8:]== '\x85\x19\x03\x20\x08\x00\x00\x00':
 							self.fd.seek(block_offset)
-							block_sig = self.fd.read(4)
+							block_sig = self.fd.read(2)
 
-							if block_sig=='\x85\x19\x02\xe0' or block_sig=='\x85\x19\x01\xe0':
+							if block_sig=='\x85\x19':
 								bad_block=False
 
 					if bad_block==True:
