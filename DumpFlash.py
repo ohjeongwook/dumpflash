@@ -23,8 +23,11 @@ class Flash:
 			
 	DebugLevel=0
 	PageSize=0x200
+	OOBSize=0x10
 	PageCountPerBlock=0x20
-		
+	def __init__(self):
+		self.BlockSize = (self.PageSize+self.OOBSize) * self.PageCountPerBlock
+
 	def Open(self,filename):
 		try:
 			self.fd=open(filename,'rb')
@@ -244,9 +247,9 @@ class Flash:
 
 		while 1:
 			for page in range(0,self.PageCountPerBlock,1):
-				offset = (block * (self.PageSize+0x10) * self.PageCountPerBlock) + page * (self.PageSize+0x10)
+				offset = (block * (self.PageSize+self.OOBSize) * self.PageCountPerBlock) + page * (self.PageSize+self.OOBSize)
 				self.fd.seek(offset,0)
-				data = self.fd.read(self.PageSize+0x10)
+				data = self.fd.read(self.PageSize+self.OOBSize)
 				
 				if not data:
 					end_of_file=True
@@ -282,60 +285,81 @@ class Flash:
 	
 		print "Checked %d ECC record and found %d errors" % (count,error_count)
 
+	def IsBadBlockPage(self,oob,block_offset):
+		bad_block=False
+		if oob[0:3]!='\xff\xff\xff':
+			bad_block=True
+
+			if oob[0x8:]== '\x85\x19\x03\x20\x08\x00\x00\x00':
+				self.fd.seek(block_offset)
+				block_sig = self.fd.read(2)
+
+				if block_sig=='\x85\x19':
+					bad_block=False
+
+		return bad_block
+
+	CLEAN_BLOCK=0
+	BAD_BLOCK=1
+	ERROR=2
+
+	def IsBadBlock(self,block):
+		for page in range(0,2,1):
+			block_offset = (block * self.BlockSize ) + (page * (self.PageSize + self.OOBSize))
+			self.fd.seek( block_offset + self.PageSize+8 )
+			bad_block_byte = self.fd.read(1)
+	
+			if not bad_block_byte:
+				return self.ERROR
+
+			if bad_block_byte != '\xff':
+				self.fd.seek(block_offset+self.PageSize)
+				oob = self.fd.read(self.OOBSize)
+				if self.IsBadBlockPage(oob,block_offset):
+					return self.BAD_BLOCK
+		return self.CLEAN_BLOCK
+
 	def CheckBadBlocks(self):
 		block = 0
 		end_of_file=False
-		count=0
 		error_count=0
+
 		while 1:
-			for page in range(0,2,1):
-				block_offset = (block * (self.PageSize+0x10) * self.PageCountPerBlock ) + (page * (self.PageSize + 0x10))
-				offset = block_offset + self.PageSize+8
+			ret=self.IsBadBlock(block)
 
-				self.fd.seek(offset)
-				bad_block_byte = self.fd.read(1)
-		
-				if not bad_block_byte:
-					end_of_file=True
-					break
+			if ret==self.BAD_BLOCK:
+				error_count+=1
+				print "Checksum error block: %d (0x%x) page: %d at 0x%x" % (block, block_offset, page, offset)
+				print "\t%s" % pprint.pformat(oob)
 	
-				count+=1
-				if bad_block_byte != '\xff':
-					self.fd.seek(block_offset+self.PageSize)
-					oob = self.fd.read(0x10)
-
-					bad_block=False
-					if oob[0:3]!='\xff\xff\xff':
-						bad_block=True
-
-						if oob[0x8:]== '\x85\x19\x03\x20\x08\x00\x00\x00':
-							self.fd.seek(block_offset)
-							block_sig = self.fd.read(2)
-
-							if block_sig=='\x85\x19':
-								bad_block=False
-
-					if bad_block==True:
-						error_count+=1
-						print "Checksum error block: %d (0x%x) page: %d at 0x%x" % (block, block_offset, page, offset)
-						print "\t%s" % pprint.pformat(oob)
-		
-			block += 1
-		
-			if end_of_file:
+			elif ret==self.ERROR:
 				break
 
-		print "Checked %d blocks and found %d errors" % (count,error_count)
+			block += 1
+
+		print "Checked %d blocks and found %d errors" % (block,error_count)
 	
 	def Extract(self, output_filename, start, size):
 		end = start + size
 		wfd=open(output_filename,"wb")
 
-		block_size = (self.PageSize+0x10) * self.PageCountPerBlock
-		for offset in range(start,end,self.PageSize+0x10):
-			self.fd.seek(offset)
-			data = self.fd.read(self.PageSize)
-			wfd.write(data)
+		start_block = ( start / self.BlockSize )
+		end_block = ( end / self.BlockSize )
+
+		print 'Dumping blocks (%d - %d)' % (start_block, end_block)
+
+		for block in range(start_block,end_block,1):
+			ret=self.IsBadBlock(block)
+
+			if ret==self.CLEAN_BLOCK:
+				for page in range(0,self.PageCountPerBlock,1):
+					self.fd.seek( block * self.BlockSize + page * (self.PageSize+self.OOBSize) )
+					data = self.fd.read(self.PageSize)
+					oob = data[self.PageSize:]
+					wfd.write(data[0:self.PageSize])
+
+			elif ret==self.ERROR:
+				break
 		
 		wfd.close()
 
