@@ -77,8 +77,8 @@ class JFFS:
 		last_totlen = 0
 		last_data_offset = 0
 		
-		inode_map = {}
-		dirent_map = {}
+		self.INodeMap = {}
+		self.DirentMap = {}
 		
 		while 1:
 			error=False
@@ -128,10 +128,10 @@ class JFFS:
 				if self.DebugLevel>1:
 					pprint.pprint(payload)
 		
-				if not inode_map.has_key(ino):
-					inode_map[ino] = []
+				if not self.INodeMap.has_key(ino):
+					self.INodeMap[ino] = []
 		
-				inode_map[ino].append( {
+				self.INodeMap[ino].append( {
 						"hdr_crc": hdr_crc, 
 						"version": version, 
 						"mode": mode, 
@@ -186,8 +186,8 @@ class JFFS:
 		
 				payload = data[data_offset+header_struct_size+dirent_struct_size+1: data_offset+header_struct_size+dirent_struct_size+1+nsize]
 		
-				if not dirent_map.has_key(ino) or dirent_map[ino]['version']<version:
-					dirent_map[ino] = {
+				if not self.DirentMap.has_key(ino) or self.DirentMap[ino]['version']<version:
+					self.DirentMap[ino] = {
 							"hdr_crc": hdr_crc, 
 							"pino": pino, 
 							"version": version, 
@@ -241,7 +241,7 @@ class JFFS:
 		
 		print "Total Count:",total_count
 		if self.DebugLevel>0:
-			pprint.pprint(dirent_map)
+			pprint.pprint(self.DirentMap)
 	
 	def GetData(self,inode_map_record):
 		next_offset=0
@@ -263,17 +263,31 @@ class JFFS:
 	
 		return data
 
-	def Dump(self):
-		for ino in dirent_map.keys():
-			if inode_map.has_key(ino):
-				filename = dirent_map[ino]["payload"]
-				fd=open(os.path.join("tmp", filename),"wb")
-				fd.write(self,self.GetData(inode_map[ino]))
+	def Dump(self,output_dir):
+		if not os.path.isdir(output_dir):
+			os.makedirs(output_dir)
+
+		for ino in self.DirentMap.keys():
+			if self.INodeMap.has_key(ino):
+				filename = self.DirentMap[ino]["payload"]
+				fd=open(os.path.join(output_dir, filename),"wb")
+				fd.write(self.GetData(self.INodeMap[ino]))
 				fd.close()
 
 if __name__=='__main__':
-	filename=sys.argv[1]
-	
+	from optparse import OptionParser
+
+	parser = OptionParser()
+	parser.add_option("-o", "--output", dest="output",
+                  help="Output directory name", metavar="OUTPUT")
+
+	(options, args) = parser.parse_args()
+
+	filename = args[0]
+
 	jffs = JFFS()
 	jffs.Parse(filename)
+
+	if options.output!=None:
+		jffs.Dump(options.output)
 
