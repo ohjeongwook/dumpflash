@@ -27,6 +27,7 @@ class Flash:
 	PageCountPerBlock=0x20
 	def __init__(self):
 		self.BlockSize = (self.PageSize+self.OOBSize) * self.PageCountPerBlock
+		self.RawPageSize=self.PageSize+self.OOBSize
 
 	def Open(self,filename):
 		try:
@@ -343,20 +344,43 @@ class Flash:
 		end = start + size
 		wfd=open(output_filename,"wb")
 
-		start_block = ( start / self.BlockSize )
-		end_block = ( end / self.BlockSize )
+		start_block = start / self.BlockSize
+		start_block_offset = start % self.BlockSize
+		start_page = start_block_offset / self.RawPageSize
+		start_page_offset = start_block_offset % self.RawPageSize
 
-		print 'Dumping blocks (%d - %d)' % (start_block, end_block)
+		end_block = end / self.BlockSize
+		end_block_offset = end % self.BlockSize
+		end_page = end_block_offset / self.RawPageSize
+		end_page_offset = end_block_offset % self.RawPageSize
+
+		print 'Dumping blocks (%d+%d - %d+%d)' % (start_block, start_block_offset, end_block, end_block_offset)
 
 		for block in range(start_block,end_block,1):
 			ret=self.IsBadBlock(block)
 
 			if ret==self.CLEAN_BLOCK:
-				for page in range(0,self.PageCountPerBlock,1):
-					self.fd.seek( block * self.BlockSize + page * (self.PageSize+self.OOBSize) )
+				current_start_page=0
+				current_end_page=self.PageCountPerBlock
+
+				if block==start_block:
+					current_start_page=start_page
+				elif block==end_block:
+					current_end_page=end_page
+
+				for page in range(current_start_page,current_end_page,1):
+					current_offset= block * self.BlockSize + page * self.RawPageSize 
+					self.fd.seek( current_offset )
+
 					data = self.fd.read(self.PageSize)
 					oob = data[self.PageSize:]
-					wfd.write(data[0:self.PageSize])
+
+					if block==start_block and page==current_start_page and start_page_offset>0:
+						wfd.write(data[start_page_offset:self.PageSize])
+					elif block==end_block and page==current_end_page and end_page_offset>0:
+						wfd.write(data[0:end_page_offset])
+					else:
+						wfd.write(data[0:self.PageSize])
 
 			elif ret==self.ERROR:
 				break
