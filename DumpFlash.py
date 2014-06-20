@@ -1,5 +1,6 @@
 import sys
 import pprint
+import struct
 
 class Flash:
 	parity = ( 
@@ -259,13 +260,13 @@ class Flash:
 				count+=1
 				body = data[0:self.PageSize]
 				ecc0_ = ord(data[self.PageSize])
-				ecc1_ = ord(data[513])
-				ecc2_ = ord(data[514])
+				ecc1_ = ord(data[self.PageSize+1])
+				ecc2_ = ord(data[self.PageSize+2])
 		
 				if ecc0_==0xff and ecc1_==0xff and ecc2_==0xff:
 					continue
 		
-				( ecc0, ecc1, ecc2) = self.CalcECC(body)
+				(ecc0, ecc1, ecc2) = self.CalcECC(body)
 		
 				ecc0_xor = ecc0 ^ ecc0_
 				ecc1_xor = ecc1 ^ ecc1_
@@ -286,17 +287,13 @@ class Flash:
 	
 		print "Checked %d ECC record and found %d errors" % (count,error_count)
 
-	def IsBadBlockPage(self,oob,block_offset):
+	def IsBadBlockPage(self,oob):
 		bad_block=False
-		if oob[0:3]!='\xff\xff\xff':
+		
+		if oob[0:3] != '\xff\xff\xff':
 			bad_block=True
-
-			if oob[0x8:]== '\x85\x19\x03\x20\x08\x00\x00\x00':
-				self.fd.seek(block_offset)
-				block_sig = self.fd.read(2)
-
-				if block_sig=='\x85\x19':
-					bad_block=False
+			if oob[0x8:] == '\x85\x19\x03\x20\x08\x00\x00\x00': #JFFS CleanMarker
+				bad_block=False
 
 		return bad_block
 
@@ -307,18 +304,16 @@ class Flash:
 	def IsBadBlock(self,block):
 		for page in range(0,2,1):
 			block_offset = (block * self.BlockSize ) + (page * (self.PageSize + self.OOBSize))
-			self.fd.seek( block_offset + self.PageSize+8 )
+			self.fd.seek( block_offset + self.PageSize + 5 )
 			bad_block_byte = self.fd.read(1)
 	
 			if not bad_block_byte:
 				return self.ERROR
 
-			if bad_block_byte != '\xff':
-				self.fd.seek(block_offset+self.PageSize)
-				oob = self.fd.read(self.OOBSize)
-				if self.IsBadBlockPage(oob,block_offset):
-					return self.BAD_BLOCK
-		return self.CLEAN_BLOCK
+			if bad_block_byte == '\xff':
+				return self.CLEAN_BLOCK
+			
+		return self.BAD_BLOCK
 
 	def CheckBadBlocks(self):
 		block = 0
@@ -330,8 +325,7 @@ class Flash:
 
 			if ret==self.BAD_BLOCK:
 				error_count+=1
-				print "Checksum error block: %d (0x%x) page: %d at 0x%x" % (block, block_offset, page, offset)
-				print "\t%s" % pprint.pformat(oob)
+				print "Bad block: %d (at 0x%x)" % (block, (block * self.BlockSize ))
 	
 			elif ret==self.ERROR:
 				break
@@ -340,8 +334,43 @@ class Flash:
 
 		print "Checked %d blocks and found %d errors" % (block,error_count)
 	
-	def Extract(self, output_filename, start, size):
-		end = start + size
+	def Reconstruct(self,filename, output_filename, size=0):
+		fd=open(filename,'rb')
+		wfd=open(output_filename,"wb")
+
+		current_block_number=0
+		current_output_size=0
+		while 1:
+			page=fd.read(self.PageSize)
+
+			if not page:
+				break
+
+			(ecc0, ecc1, ecc2) = self.CalcECC(page)
+
+			oob_postfix='\xFF' * 13
+			if current_output_size% self.BlockSize==0:
+				if current_block_number%2==0:
+					oob_postfix="\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
+				current_block_number+=1
+
+			data=page + struct.pack('BBB',ecc0,ecc1,ecc2) + oob_postfix
+			wfd.write(data)
+			current_output_size += len(data)
+
+		#Write blank pages
+		while size>current_output_size:
+			if current_output_size% self.BlockSize==0:
+				wfd.write("\xff"*0x200+ "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00")
+			else:
+				wfd.write("\xff"*0x210)
+			current_output_size+=0x210
+
+		fd.close()
+		wfd.close()
+
+	def Extract(self, output_filename, start, end):
+		#end = start + size
 		wfd=open(output_filename,"wb")
 
 		start_block = start / self.BlockSize
@@ -354,9 +383,9 @@ class Flash:
 		end_page = end_block_offset / self.RawPageSize
 		end_page_offset = end_block_offset % self.RawPageSize
 
-		print 'Dumping blocks (%d+%d - %d+%d)' % (start_block, start_block_offset, end_block, end_block_offset)
+		print 'Dumping blocks (0x%x+0x%x - 0x%x+0x%x)' % (start_block, start_block_offset, end_block, end_block_offset)
 
-		for block in range(start_block,end_block,1):
+		for block in range(start_block,end_block+1,1):
 			ret=self.IsBadBlock(block)
 
 			if ret==self.CLEAN_BLOCK:
@@ -366,10 +395,11 @@ class Flash:
 				if block==start_block:
 					current_start_page=start_page
 				elif block==end_block:
-					current_end_page=end_page
+					current_end_page=end_page+1
 
 				for page in range(current_start_page,current_end_page,1):
 					current_offset= block * self.BlockSize + page * self.RawPageSize 
+
 					self.fd.seek( current_offset )
 
 					data = self.fd.read(self.PageSize)
@@ -377,13 +407,16 @@ class Flash:
 
 					if block==start_block and page==current_start_page and start_page_offset>0:
 						wfd.write(data[start_page_offset:self.PageSize])
-					elif block==end_block and page==current_end_page and end_page_offset>0:
+					elif block==end_block and page==current_end_page-1 and end_page_offset>=0:
 						wfd.write(data[0:end_page_offset])
 					else:
 						wfd.write(data[0:self.PageSize])
 
 			elif ret==self.ERROR:
 				break
+
+			else:
+				print "Skipping block %d" % block
 		
 		wfd.close()
 
@@ -396,13 +429,14 @@ if __name__=='__main__':
 
 	parser.add_option("-b", action="store_true", dest="check_bad_blocks")
 	parser.add_option("-e", action="store_true", dest="check_ecc")
-	parser.add_option("-r", type="int", nargs=2, dest="range")
+	parser.add_option("-R", action="store_true", dest="reconstruct")
+	parser.add_option("-s", type="int", default=0, dest="size")
 
+	parser.add_option("-r", type="int", nargs=2, dest="range")
+	
 	(options, args) = parser.parse_args()
 
 	filename = args[0]
-
-	print 'Opening', filename
 
 	flash = Flash()
 
@@ -418,6 +452,10 @@ if __name__=='__main__':
 		if options.range!=None and options.output!=None:
 			print 'Extract range(%x - %x) to %s' % ( options.range[0], options.range[1], options.output)
 			flash.Extract(options.output,  options.range[0], options.range[1])
+
+		if options.reconstruct:
+			print 'Reconstruct'
+			flash.Reconstruct(filename,options.output,options.size)
 
 		flash.Close()
 
