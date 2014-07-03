@@ -119,22 +119,18 @@ class JFFS:
 		
 				payload = data[data_offset+0x44: data_offset+0x44+csize]
 				
-				print 'hdr_crc:',hex(zlib.crc32(hdr,0)), hex(hdr_crc)
-				print hex(zlib.crc32(node_data,0)), hex(node_crc)
-				print hex(zlib.crc32(payload,0)), hex(data_crc)
-									
 				if compr == 0x6:
 					try:
 						payload=decompress(payload)
 					except:
-						print "* Uncompress error"
-						error=True
+						if self.DebugLevel>0:
+							print "* Uncompress error"
+							error=True
 						pass
 	
 					if self.DebugLevel>0:
 						print "payload length:", len(payload)
 		
-				print hex(zlib.crc32(payload,0)), hex(data_crc)
 				if self.DebugLevel>1:
 					pprint.pprint(payload)
 		
@@ -343,12 +339,17 @@ class JFFS:
 		return data
 
 	def DumpFile(self, filename, mod='', out=''):
+		print 'DumpFile'
 		for ino in self.DirentMap.keys():
 			if self.INodeMap.has_key(ino):
 				path=self.GetPath(ino)
 
 				if path==filename:
-					print self.GetPath(ino), len(self.DirentMap[ino]["payload"])
+					print ''
+					print '='*80
+					print ino, self.GetPath(ino), len(self.DirentMap[ino]["payload"])
+					pprint.pprint(self.DirentMap[ino])
+					 
 					data = self.GetData(self.INodeMap[ino])
 					print data
 
@@ -384,6 +385,33 @@ class JFFS:
 				fd.write(data)
 				fd.close()
 
+	def ListData(self,inode_map_record):
+		for record in inode_map_record:
+			offset = record['offset']
+			print 'version: 0x%x' % record['version']
+			print '\toffset: 0x%x' % record['offset']
+			print '\tpayload: 0x%x' % len(record['payload'])
+			print '\tdata_offset: 0x%x' % record['data_offset']
+			print '\tctime: 0x%x' % record['ctime']
+			print '\tmtime: 0x%x' % record['mtime']
+			print '\tatime: 0x%x' % record['atime']
+
+	def ListFile(self,filename):
+		print 'Path\tInode\tNumber of records'
+		for ino in self.DirentMap.keys():
+			if self.INodeMap.has_key(ino):
+				if filename=='':
+					print self.GetPath(ino)
+					print '\tInode:', ino
+					print '\tRecords:', len(self.INodeMap[ino])
+				else:
+					path=self.GetPath(ino)
+					if path==filename:
+						print self.GetPath(ino)
+						print '\tInode:', ino
+						print '\tRecords:', len(self.INodeMap[ino])
+						self.ListData(self.INodeMap[ino])
+
 if __name__=='__main__':
 	from optparse import OptionParser
 
@@ -400,6 +428,8 @@ if __name__=='__main__':
 	parser.add_option("-O", "--output_filename", dest="output_filename",
                   help="Set output filename", default="", metavar="OUTPUT_FILENAME")
 
+	parser.add_option("-l", action="store_true", dest="list")
+
 	(options, args) = parser.parse_args()
 
 	filename = args[0]
@@ -407,8 +437,10 @@ if __name__=='__main__':
 	jffs = JFFS()
 	jffs.Parse(filename)
 
-	if options.output_dir!='':
+	if options.list:
+		jffs.ListFile(options.file)
+	elif options.output_dir!='':
 		jffs.Dump(options.output_dir)
-
-	if options.file!=None:
+	elif options.file!='':
 		jffs.DumpFile(options.file, options.new_data_filename, options.output_filename)
+	
