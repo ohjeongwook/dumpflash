@@ -411,8 +411,10 @@ class Flash:
 		fd.close()
 		wfd.close()
 
-	def Extract(self, output_filename, start, end, preserve_oob = False):
-		#end = start + size
+	def Extract(self, output_filename, start=0, end=-1, preserve_oob = False):
+		if end==-1:
+			end=self.BlockSize*self.RawPageSize*self.PageCountPerBlock
+
 		wfd=open(output_filename,"wb")
 
 		start_block = start / self.BlockSize
@@ -505,9 +507,14 @@ if __name__=='__main__':
 			flash.DumpJFFS2()
 
 		if options.extract:
-			# options.range!=None and options.output!=None:
-			print 'Extract range(%x - %x) to %s' % ( options.range[0], options.range[1], options.output)
-			flash.Extract(options.output,  options.range[0], options.range[1], options.preserve_oob)
+			start=0
+			end=-1
+			if options.range!=None:
+				start=options.range[0]
+				end=options.range[1]
+
+			print 'Extract range(%x - %x) to %s' % ( start, end, options.output)
+			flash.Extract(options.output,  start, end, options.preserve_oob)
 
 		if options.reconstruct:
 			print 'Reconstruct'
