@@ -14,8 +14,10 @@ parser.add_option("-e", action="store_true", dest="erase", default=False,
 				help="Erase")
 parser.add_option("-u", action="store_true", dest="find_uboot_images", default=False,
 				help="Find U-Boot images")
+parser.add_option("-j", action="store_true", dest="find_jffs2", default=False,
+				help="Find JFFS2 Image")
 parser.add_option("-c", "--command", dest="command", default='',
-				help="Commands (CheckBadBlocks, CheckECC, DumpJFFS2, AddOOB)", metavar="COMMAND")
+				help="Commands (CheckBadBlocks, CheckECC, AddOOB)", metavar="COMMAND")
 
 parser.add_option("-B", action="store_true", dest="RemoveOOB", default=False,
 				help="Remove OOB when processing")
@@ -63,9 +65,9 @@ if options.filename:
 			print 'Check ECC:'
 			flash_page.CheckECC()
 	
-		if options.command=="DumpJFFS2":
-			print 'Dump JFFS2:'
-			flash_page.DumpJFFS2()
+		if options.find_jffs2:
+			print 'Find JFFS2:'
+			flash_page.FindJFFS2()
 
 		if options.RemoveOOB:
 			print 'Extract pages(0x%x - 0x%x) to %s' % ( start_page, end_page, args[0])

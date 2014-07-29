@@ -383,7 +383,7 @@ class Page:
 			return 0
 		return 1
 
-	def DumpJFFS2(self):
+	def FindJFFS2(self):
 		block = 0
 		end_of_file=False
 		error_count=0
@@ -400,7 +400,7 @@ class Page:
 					break
 
 				if oob[8:] == '\x85\x19\x03\x20\x08\x00\x00\x00': # and oob[0:3]!='\xff\xff\xff'
-					print "JFFS2 block: %d (at 0x%x) - %.2x %.2x %.2x" % (block, (block * self.BlockSize ), ord(oob[0]), ord(oob[1]), ord(oob[2]))
+					print "JFFS2 block: %d (at file offset 0x%x) - ECC: %.2x %.2x %.2x" % (block, (block * self.BlockSize ), ord(oob[0]), ord(oob[1]), ord(oob[2]))
 
 			elif ret == self.ERROR:
 				break
