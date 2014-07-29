@@ -22,11 +22,19 @@ class Page:
 	)
 			
 	DebugLevel=0
+
 	PageSize=0x200
 	OOBSize=0x10
-	PageCountPerBlock=0x20
+	PagePerBlock=0x20
+
 	def __init__(self):
-		self.BlockSize = (self.PageSize+self.OOBSize) * self.PageCountPerBlock
+		pass
+
+	def SetPageInfo(self, page_size, oob_size, page_per_block):
+		self.PageSize=page_size
+		self.OOBSize=oob_size
+		self.PagePerBlock=page_per_block
+		self.BlockSize = (self.PageSize+self.OOBSize) * self.PagePerBlock
 		self.RawPageSize=self.PageSize+self.OOBSize
 
 	def Open(self,filename):
@@ -247,8 +255,8 @@ class Page:
 		error_count=0
 
 		while 1:
-			for page in range(0,self.PageCountPerBlock,1):
-				offset = (block * (self.PageSize+self.OOBSize) * self.PageCountPerBlock) + page * (self.PageSize+self.OOBSize)
+			for page in range(0,self.PagePerBlock,1):
+				offset = (block * (self.PageSize+self.OOBSize) * self.PagePerBlock) + page * (self.PageSize+self.OOBSize)
 				self.fd.seek(offset,0)
 				data = self.fd.read(self.PageSize+self.OOBSize)
 				
@@ -316,7 +324,6 @@ class Page:
 
 	def CheckBadBlocks(self):
 		block = 0
-		end_of_file=False
 		error_count=0
 
 		while 1:
@@ -332,6 +339,31 @@ class Page:
 			block += 1
 
 		print "Checked %d blocks and found %d errors" % (block,error_count)
+
+	def GetBlockOffset(self,block):
+		return block * self.BlockSize
+
+	def FindUBootImages(self):
+		block = 0
+
+		print 'Finding U-Boot Images'
+		while 1:
+			ret=self.IsBadBlock(block)
+
+			if ret==self.BAD_BLOCK:
+				error_count+=1
+			elif ret==self.ERROR:
+				break
+
+			self.fd.seek(self.GetBlockOffset(block))
+			magic=self.fd.read(4)
+
+			if magic=='\x27\x05\x19\x56':
+				print 'U-Boot Image found at block 0x%x' % ( block )
+
+			block += 1
+
+		print "Checked %d blocks" % (block)
 	
 	def IsJFFS2Block(self,block):
 		ret = self.IsBadBlock(block) 
@@ -362,7 +394,7 @@ class Page:
 				page=0
 				block_offset = (block * self.BlockSize ) + (page * (self.PageSize + self.OOBSize))
 				self.fd.seek( block_offset + self.PageSize)
-				oob = self.fd.read(16)
+				oob = self.fd.read(self.OOBSize)
 	
 				if not oob:
 					break
@@ -410,9 +442,17 @@ class Page:
 		fd.close()
 		wfd.close()
 
+	def RemoveOOBByPage(self, output_filename, start_page=0, end_page=-1, preserve_oob = False):
+		if end_page==-1:
+			end=self.BlockSize*self.RawPageSize*self.PagePerBlock
+		else:
+			end=end_page * self.RawPageSize
+
+		return self.RemoveOOB(output_filename, start_page * self.RawPageSize, end, preserve_oob)
+
 	def RemoveOOB(self, output_filename, start=0, end=-1, preserve_oob = False):
 		if end==-1:
-			end=self.BlockSize*self.RawPageSize*self.PageCountPerBlock
+			end=self.BlockSize*self.RawPageSize*self.PagePerBlock
 
 		wfd=open(output_filename,"wb")
 
@@ -426,14 +466,14 @@ class Page:
 		end_page = end_block_offset / self.RawPageSize
 		end_page_offset = end_block_offset % self.RawPageSize
 
-		print 'Dumping blocks (0x%x+0x%x - 0x%x+0x%x)' % (start_block, start_block_offset, end_block, end_block_offset)
+		print 'Dumping blocks (Block: 0x%x Page: 0x%x ~  Block: 0x%x Page: 0x%x)' % (start_block, start_block_offset, end_block, end_block_offset)
 
 		for block in range(start_block,end_block+1,1):
 			ret=self.IsBadBlock(block)
 
 			if ret==self.CLEAN_BLOCK:
 				current_start_page=0
-				current_end_page=self.PageCountPerBlock
+				current_end_page=self.PagePerBlock
 
 				if block==start_block:
 					current_start_page=start_page
