@@ -4,7 +4,7 @@ import time
 import sys
 import pprint
 
-class NandTool:
+class NandIO:
 	ADR_CE=0x10
 	ADR_WP=0x20
 	ADR_CL=0x40
