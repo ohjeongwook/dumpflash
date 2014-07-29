@@ -444,7 +444,7 @@ class NandTool:
 
 			if i==0 or i==1:
 				if page_data[self.PageSize+5]!=0xff:
-					print 'Skipping bad block %d (%.2x)' % (pageno, page_data[self.PageSize+5])
+					print 'Skipping bad block %d (%.2x)' % (pageno+i, page_data[self.PageSize+5])
 					pprint.pprint(page_data[self.PageSize:])
 					bad_block = True
 			if remove_oob:
@@ -477,7 +477,7 @@ class NandTool:
 		bytes=0
 		start = time.time()
 		for page in range(start_page,end_page+1,self.PagePerBlock):
-			data=nand_tool.readSeq(page, remove_oob)
+			data=self.readSeq(page, remove_oob)
 			fd.write(data)
 
 			bytes+=len(data)
@@ -624,86 +624,3 @@ class NandTool:
 		for block in range(start_block, end_block+1, 1):
 			print "Erasing block", block
 			self.eraseBlockByPage(block * self.PagePerBlock)
-
-if __name__=='__main__':
-	from optparse import OptionParser
-
-	parser = OptionParser()
-	parser.add_option("-i", action="store_true", dest="information", default=False)
-
-	parser.add_option("-s", action="store_true", dest="seq", default=False,
-					help="Set sequential row read mode - some NAND models supports")
-
-	parser.add_option("-B", action="store_true", dest="badblocks", default=False,
-					help="Check badblocks")
-
-	parser.add_option("-e", action="store_true", dest="erase", default=False,
-					help="Erase")
-
-	parser.add_option("-j", action="store_true", dest="CheckJFFS2", default=False,
-					help="Check JFFS2 blocks")
-	
-	parser.add_option("-J", action="store_true", dest="DumpJFFS2", default=False,
-					help="Dump JFFS2 blocks")
-
-	parser.add_option("-O", action="store_true", dest="RemoveOOB", default=False,
-					help="Remove OOB lines")
-
-	parser.add_option("-S", action="store_true", dest="slow", default=False,
-					help="Set clock FTDI chip at 12MHz instead of 60MHz")
-
-	parser.add_option("-r", "--read", dest="read", default='', 
-					help="Read NAND Flash to a file", metavar="READ")
-
-	parser.add_option("-w", "--write", dest="write", default='',
-					help="Write file to a NAND Flash", metavar="WRITE")
-
-	parser.add_option("-o", type="int", default=0, dest="offset")
-
-	parser.add_option("-p", type="int", nargs=2, dest="pages")
-
-	parser.add_option("-b", type="int", nargs=2, dest="blocks")
-
-	(options, args) = parser.parse_args()
-	nand_tool = NandTool(options.slow)
-
-	nand_tool.DumpInfo()
-	if options.information:
-		pass
-
-	start_page=-1
-	end_page=-1
-	if options.pages!=None:
-		if len(options.pages)>0:
-			start_page=options.pages[0]
-		if len(options.pages)>1:
-			end_page=options.pages[1]
-
-	elif options.blocks!=None:
-		if len(options.blocks)>0:
-			start_page=options.blocks[0] * nand_tool.PagePerBlock
-		if len(options.blocks)>1:
-			end_page=(options.blocks[1] + 1 ) * nand_tool.PagePerBlock
-
-	if options.DumpJFFS2:
-		[minimum_pageno, maximum_pageno] = nand_tool.CheckJFFS2()
-		start_page=minimum_pageno
-		end_page=maximum_pageno
-
-	if options.read:
-		if options.seq:
-			nand_tool.readSeqPages(options.read, start_page, end_page, options.RemoveOOB)
-		else:
-			nand_tool.readPages(options.read, start_page, end_page, options.RemoveOOB)
-
-	if options.write:
-		nand_tool.writePages(options.write, options.offset, start_page, end_page)
-
-	if options.badblocks:
-		nand_tool.CheckBadBlocks()
-
-	if options.CheckJFFS2:
-		nand_tool.CheckJFFS2()
-
-	if options.erase:
-		nand_tool.EraseBlock(options.blocks[0], options.blocks[1])
