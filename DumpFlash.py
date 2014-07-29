@@ -12,12 +12,10 @@ parser.add_option("-w", action="store_true", dest="write", default=False,
 				help="Write file to a NAND Flash")
 parser.add_option("-e", action="store_true", dest="erase", default=False,
 				help="Erase")
-
+parser.add_option("-u", action="store_true", dest="find_uboot_images", default=False,
+				help="Find U-Boot images")
 parser.add_option("-c", "--command", dest="command", default='',
-				help="Commands (CheckBadBlocks, CheckECC, DumpJFFS2, AddOOB, RemoveOOB)", metavar="COMMAND")
-
-parser.add_option("-O", "--output", dest="output",
-                help="Output filename", metavar="OUTPUT")
+				help="Commands (CheckBadBlocks, CheckECC, DumpJFFS2, AddOOB)", metavar="COMMAND")
 
 parser.add_option("-B", action="store_true", dest="RemoveOOB", default=False,
 				help="Remove OOB when processing")
@@ -32,6 +30,10 @@ parser.add_option("-p", type="int", nargs=2, dest="pages")
 parser.add_option("-b", type="int", nargs=2, dest="blocks")
 parser.add_option("-z", type="int", default=0, dest="size")
 	
+parser.add_option("-P", type="int", default=512, dest="page_size")
+parser.add_option("-E", type="int", default=16, dest="oob_size")
+parser.add_option("-K", type="int", default=32, dest="pages_per_block")
+
 (options, args) = parser.parse_args()
 
 start_page=-1
@@ -43,52 +45,56 @@ if options.pages!=None:
 		end_page=options.pages[1]
 
 if options.filename:
-	flash = FlashPage()
+	flash_page = Page()
+	flash_page.SetPageInfo(options.page_size, options.oob_size, options.pages_per_block)
 
-	if flash.Open(filename):
+	if options.blocks!=None:
+		if len(options.blocks)>0:
+			start_page=options.blocks[0] * options.pages_per_block
+		if len(options.blocks)>1:
+			end_page=(options.blocks[1] + 1 ) * options.pages_per_block
+
+	if flash_page.Open(options.filename):
 		if options.command=="CheckBadBlocks":
 			print 'Check bad blocks:'
-			flash.CheckBadBlocks()
+			flash_page.CheckBadBlocks()
 	
 		if options.command=="CheckECC":
 			print 'Check ECC:'
-			flash.CheckECC()
+			flash_page.CheckECC()
 	
 		if options.command=="DumpJFFS2":
 			print 'Dump JFFS2:'
-			flash.DumpJFFS2()
+			flash_page.DumpJFFS2()
 
-		if options.command=="RemoveOOB":
-			start=0
-			end=-1
-			if options.pages!=None:
-				start=options.pages[0]
-				end=options.pages[1]
-
-			print 'Extract pages(%x - %x) to %s' % ( start, end, options.output)
-			flash.RemoveOOB(options.output,  start, end)
+		if options.RemoveOOB:
+			print 'Extract pages(0x%x - 0x%x) to %s' % ( start_page, end_page, args[0])
+			flash_page.RemoveOOBByPage(args[0],  start_page , end_page )
 
 		if options.command=="AddOOB":
-			flash.AddOOB(filename,options.output,options.size)
+			flash_page.AddOOB(filename,args[0],options.size)
 
-		flash.Close()
+		if options.find_uboot_images:
+			flash_page.FindUBootImages()
+
+		flash_page.Close()
 
 else:
-	nand_tool = NandTool(options.slow)
+	nand_io = NandIO(options.slow)
 
-	nand_tool.DumpInfo()
+	nand_io.DumpInfo()
 	if options.information:
 		pass
 
-	elif options.blocks!=None:
+	if options.blocks!=None:
 		if len(options.blocks)>0:
-			start_page=options.blocks[0] * nand_tool.PagePerBlock
+			start_page=options.blocks[0] * nand_io.PagePerBlock
 		if len(options.blocks)>1:
-			end_page=(options.blocks[1] + 1 ) * nand_tool.PagePerBlock
+			end_page=(options.blocks[1] + 1 ) * nand_io.PagePerBlock
 
 	"""
 	if options.DumpJFFS2:
-		[minimum_pageno, maximum_pageno] = nand_tool.CheckJFFS2()
+		[minimum_pageno, maximum_pageno] = nand_io.CheckJFFS2()
 		start_page=minimum_pageno
 		end_page=maximum_pageno
 	"""
@@ -96,19 +102,19 @@ else:
 	if options.read:
 		filename=args[0]
 		if options.seq:
-			nand_tool.readSeqPages(filename, start_page, end_page, options.RemoveOOB)
+			nand_io.readSeqPages(filename, start_page, end_page, options.RemoveOOB)
 		else:
-			nand_tool.readPages(filename, start_page, end_page, options.RemoveOOB)
+			nand_io.readPages(filename, start_page, end_page, options.RemoveOOB)
 
 	if options.write:
 		filename=args[0]
-		nand_tool.writePages(filename, options.offset, start_page, end_page)
+		nand_io.writePages(filename, options.offset, start_page, end_page)
 
 	if options.command=="CheckBadBlocks":
-		nand_tool.CheckBadBlocks()
+		nand_io.CheckBadBlocks()
 
 	if options.command=="CheckJFFS2":
-		nand_tool.CheckJFFS2()
+		nand_io.CheckJFFS2()
 
 	if options.erase:
-		nand_tool.EraseBlock(options.blocks[0], options.blocks[1])
+		nand_io.EraseBlock(options.blocks[0], options.blocks[1])
