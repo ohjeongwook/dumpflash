@@ -334,6 +334,48 @@ class Flash:
 
 		print "Checked %d blocks and found %d errors" % (block,error_count)
 	
+	def IsJFFS2Block(self,block):
+		ret = self.IsBadBlock(block) 
+		if ret == self.CLEAN_BLOCK:
+			page=0
+			block_offset = (block * self.BlockSize ) + (page * (self.PageSize + self.OOBSize))
+			self.fd.seek( block_offset + self.PageSize)
+			oob = self.fd.read(16)
+	
+			if not oob:
+				return 0
+
+			if oob[8:] == '\x85\x19\x03\x20\x08\x00\x00\x00' and oob[0:3]!='\xff\xff\xff':
+				return 2
+
+		elif ret == self.ERROR:
+			return 0
+		return 1
+
+	def DumpJFFS2(self):
+		block = 0
+		end_of_file=False
+		error_count=0
+
+		while 1:
+			ret = self.IsBadBlock(block) 
+			if ret == self.CLEAN_BLOCK:
+				page=0
+				block_offset = (block * self.BlockSize ) + (page * (self.PageSize + self.OOBSize))
+				self.fd.seek( block_offset + self.PageSize)
+				oob = self.fd.read(16)
+	
+				if not oob:
+					break
+
+				if oob[8:] == '\x85\x19\x03\x20\x08\x00\x00\x00': # and oob[0:3]!='\xff\xff\xff'
+					print "JFFS2 block: %d (at 0x%x) - %.2x %.2x %.2x" % (block, (block * self.BlockSize ), ord(oob[0]), ord(oob[1]), ord(oob[2]))
+
+			elif ret == self.ERROR:
+				break
+
+			block += 1
+
 	def Reconstruct(self,filename, output_filename, size=0):
 		fd=open(filename,'rb')
 		wfd=open(output_filename,"wb")
@@ -369,7 +411,7 @@ class Flash:
 		fd.close()
 		wfd.close()
 
-	def Extract(self, output_filename, start, end):
+	def Extract(self, output_filename, start, end, preserve_oob = False):
 		#end = start + size
 		wfd=open(output_filename,"wb")
 
@@ -402,15 +444,21 @@ class Flash:
 
 					self.fd.seek( current_offset )
 
-					data = self.fd.read(self.PageSize)
-					oob = data[self.PageSize:]
+					data = self.fd.read(self.RawPageSize)
+
+					if preserve_oob:
+						write_size=self.RawPageSize
+					else:
+						write_size=self.PageSize
 
 					if block==start_block and page==current_start_page and start_page_offset>0:
-						wfd.write(data[start_page_offset:self.PageSize])
+						wfd.write(data[start_page_offset:write_size])
+
 					elif block==end_block and page==current_end_page-1 and end_page_offset>=0:
 						wfd.write(data[0:end_page_offset])
+
 					else:
-						wfd.write(data[0:self.PageSize])
+						wfd.write(data[0:write_size])
 
 			elif ret==self.ERROR:
 				break
@@ -429,7 +477,10 @@ if __name__=='__main__':
 
 	parser.add_option("-b", action="store_true", dest="check_bad_blocks")
 	parser.add_option("-e", action="store_true", dest="check_ecc")
+	parser.add_option("-j", action="store_true", dest="dump_jffs2")
 	parser.add_option("-R", action="store_true", dest="reconstruct")
+	parser.add_option("-E", action="store_true", dest="extract")
+	parser.add_option("-O", action="store_true", dest="preserve_oob")
 	parser.add_option("-s", type="int", default=0, dest="size")
 
 	parser.add_option("-r", type="int", nargs=2, dest="range")
@@ -449,9 +500,14 @@ if __name__=='__main__':
 			print 'Check ECC:'
 			flash.CheckECC()
 	
-		if options.range!=None and options.output!=None:
+		if options.dump_jffs2:
+			print 'Dump JFFS2:'
+			flash.DumpJFFS2()
+
+		if options.extract:
+			# options.range!=None and options.output!=None:
 			print 'Extract range(%x - %x) to %s' % ( options.range[0], options.range[1], options.output)
-			flash.Extract(options.output,  options.range[0], options.range[1])
+			flash.Extract(options.output,  options.range[0], options.range[1], options.preserve_oob)
 
 		if options.reconstruct:
 			print 'Reconstruct'
