@@ -1,6 +1,8 @@
 from pyftdi.pyftdi.ftdi import *
 from array import array as Array
 import time
+import sys
+import pprint
 
 class NandTool:
 	ADR_CE=0x10
@@ -117,8 +119,21 @@ class NandTool:
 	BlockCount=4096
 	PagePerBlock=32
 	WriteProtect=True
+	CheckBadBlock=True
+	CheckBadBlocksForWriting=False
+	RemoveOOB=False
 
 	def __init__(self, do_slow=False):
+	
+		try:
+			import colorama
+			colorama.init()
+		except:
+			try:
+				import tendo.ansiterm
+			except:
+				pass
+
 		self.Ftdi = Ftdi()
 		self.Ftdi.open(0x0403,0x6010,interface=1)
 		self.Ftdi.set_bitmode(0, self.Ftdi.BITMODE_MCU)
@@ -275,7 +290,8 @@ class NandTool:
 		if id[0]==0xc2:
 			self.Manufacturer="Macronix";
 
-		self.PageCount=(self.ChipSizeMB*1024*1024)/self.PageSize
+		if self.PageSize>0:
+			self.PageCount=(self.ChipSizeMB*1024*1024)/self.PageSize
 
 	def DumpInfo(self):
 		print 'Name:\t\t',self.Name
@@ -289,7 +305,24 @@ class NandTool:
 		print 'Address cycle:\t',self.AddrCycles
 		print 'Manufacturer:\t',self.Manufacturer
 
-	def readPage(self,pageno):
+	def readOOB(self,pageno):
+		bytes=[]
+		if self.Options&self.LP_Options:
+			pass #TODO:
+		else:
+			self.sendCmd(self.NAND_CMD_READOOB)
+			self.waitReady()
+			self.sendAddr(pageno<<8,self.AddrCycles)
+			self.waitReady()
+			bytes+=self.readData(self.OOBSize)
+
+		data=''
+
+		for ch in bytes:
+			data+=chr(ch)
+		return data
+
+	def readPage(self,pageno,remove_oob=False):
 		bytes=[]
 
 		if self.Options&self.LP_Options:
@@ -318,6 +351,7 @@ class NandTool:
 			self.waitReady()
 			bytes+=self.readData(self.PageSize)
 
+			#TODO: Implement remove_oob
 		else:
 			self.sendCmd(self.NAND_CMD_READ0)
 			self.waitReady()
@@ -331,11 +365,12 @@ class NandTool:
 			self.waitReady()
 			bytes+=self.readData(self.PageSize/2)
 
-			self.sendCmd(self.NAND_CMD_READOOB)
-			self.waitReady()
-			self.sendAddr(pageno<<8,self.AddrCycles)
-			self.waitReady()
-			bytes+=self.readData(self.OOBSize)
+			if not remove_oob:
+				self.sendCmd(self.NAND_CMD_READOOB)
+				self.waitReady()
+				self.sendAddr(pageno<<8,self.AddrCycles)
+				self.waitReady()
+				bytes+=self.readData(self.OOBSize)
 
 		data=''
 
@@ -343,7 +378,7 @@ class NandTool:
 			data+=chr(ch)
 		return data
 
-	def readPages(self,filename,start_page=-1,end_page=-1):
+	def readPages(self,filename,start_page=-1,end_page=-1,remove_oob=False):
 		fd=open(filename,'wb')
 		
 		if start_page==-1:
@@ -354,36 +389,83 @@ class NandTool:
 
 		bytes=0
 		start = time.time()
-		for page in range(start_page,end_page+1,1):
-			data=self.readPage(page)
+		for page in range(start_page,end_page,1):
+			data=self.readPage(page,remove_oob)
 			fd.write(data)
 			
 			bytes+=len(data)
 			current = time.time()
-			print '%x/%lx (%d bytes/sec)\n\033[A' % (page, self.PageCount, bytes/(current-start)),
+			sys.stdout.write('%x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
 		fd.close()
 
-	def readSeq(self,pageno):
+	def CheckBadBlocks(self):
+		bad_blocks={}
+		for pageno in range(0,self.PageCount,self.PagePerBlock):
+			for pageoff in range(0,2,1):
+				oob=self.readOOB(pageno+pageoff)
+
+				if oob[5]!='\xff':
+					print 'Bad block found:', pageno
+					bad_blocks[pageno]=1
+					break
+		return bad_blocks
+
+	def CheckJFFS2(self):
+		bad_blocks={}
+		minimum_pageno=-1
+		maximum_pageno=-1
+		for pageno in range(0,self.PageCount,self.PagePerBlock):
+			oob=self.readOOB(pageno)
+
+			if oob[8:]=='\x85\x19\x03\x20\x08\x00\x00\x00':
+				print 'JFFS2 block found:', pageno
+
+				if minimum_pageno == -1:
+					minimum_pageno = pageno
+				maximum_pageno = pageno
+			elif oob[0:3]=='\xff\xff\xff':
+				print 'blank page'
+			else:
+				print 'OOB: ', pageno, pprint.pprint(oob)
+
+		return [minimum_pageno, maximum_pageno]
+
+	def readSeq(self,pageno,remove_oob=False):
 		page=[]
 		self.sendCmd(self.NAND_CMD_READ0)
 		self.waitReady()
 		self.sendAddr(pageno<<8,self.AddrCycles)
 		self.waitReady()
 
+		bad_block=False
+
 		for i in range(0,self.PagePerBlock,1):
-			page+=self.readData(self.PageSize+self.OOBSize)
+			page_data = self.readData(self.PageSize+self.OOBSize)
+
+			if i==0 or i==1:
+				if page_data[self.PageSize+5]!=0xff:
+					print 'Skipping bad block %d (%.2x)' % (pageno, page_data[self.PageSize+5])
+					pprint.pprint(page_data[self.PageSize:])
+					bad_block = True
+			if remove_oob:
+				page += page_data[0:self.PageSize]
+			else:
+				page += page_data
+
 			self.waitReady()
 
 		self.Ftdi.write_data(Array('B', [Ftdi.SET_BITS_HIGH,0x1,0x1]))
 		self.Ftdi.write_data(Array('B', [Ftdi.SET_BITS_HIGH,0x0,0x1]))
 
 		data=''
-		for ch in page:
-			data+=chr(ch)
+
+		if not bad_block or not self.CheckBadBlock:
+			for ch in page:
+				data+=chr(ch)
 
 		return data
 
-	def readSeqPages(self,filename,start_page=-1,end_page=-1):
+	def readSeqPages(self, filename, start_page=-1, end_page=-1, remove_oob=False):
 		fd=open(filename,'wb')
 		
 		if start_page==-1:
@@ -395,16 +477,16 @@ class NandTool:
 		bytes=0
 		start = time.time()
 		for page in range(start_page,end_page+1,self.PagePerBlock):
-			data=nand_tool.readSeq(page)
+			data=nand_tool.readSeq(page, remove_oob)
 			fd.write(data)
 
 			bytes+=len(data)
 			current = time.time()
-			print '%x/%lx (%d bytes/sec)\n\033[A' % (page, self.PageCount, bytes/(current-start)),
+			sys.stdout.write('%x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
 
 		fd.close()
 
-	def eraseBlock(self,pageno):
+	def eraseBlockByPage(self,pageno):
 		self.WriteProtect=False
 		self.sendCmd(self.NAND_CMD_ERASE1);
 		self.sendAddr(pageno, self.AddrCycles);
@@ -428,52 +510,65 @@ class NandTool:
 			self.sendCmd(self.NAND_CMD_PAGEPROG)
 			self.waitReady()
 		else:
-			self.sendCmd(self.NAND_CMD_READ0)
-			self.sendCmd(self.NAND_CMD_SEQIN)
-			self.waitReady()
-			self.sendAddr(pageno<<8,self.AddrCycles)
-			self.waitReady()
-			self.writeData(data[0:256])
-			self.sendCmd(self.NAND_CMD_PAGEPROG)
-			err=self.Status()
-			if err&self.NAND_STATUS_FAIL:
-				return err
+			while 1:
+				self.sendCmd(self.NAND_CMD_READ0)
+				self.sendCmd(self.NAND_CMD_SEQIN)
+				self.waitReady()
+				self.sendAddr(pageno<<8,self.AddrCycles)
+				self.waitReady()
+				self.writeData(data[0:256])
+				self.sendCmd(self.NAND_CMD_PAGEPROG)
+				err=self.Status()
+				if err&self.NAND_STATUS_FAIL:
+					print 'Failed to write 1st half of ', pageno, err
+					#return err
+					continue
+				break
 
-			self.sendCmd(self.NAND_CMD_READ1)
-			self.sendCmd(self.NAND_CMD_SEQIN)
-			self.waitReady()
-			self.sendAddr(pageno<<8,self.AddrCycles)
-			self.waitReady()
-			self.writeData(data[self.PageSize/2:self.PageSize])
-			self.sendCmd(self.NAND_CMD_PAGEPROG)
-			err=self.Status()
-			if err&self.NAND_STATUS_FAIL:
-				return err
+			while 1:
+				self.sendCmd(self.NAND_CMD_READ1)
+				self.sendCmd(self.NAND_CMD_SEQIN)
+				self.waitReady()
+				self.sendAddr(pageno<<8,self.AddrCycles)
+				self.waitReady()
+				self.writeData(data[self.PageSize/2:self.PageSize])
+				self.sendCmd(self.NAND_CMD_PAGEPROG)
+				err=self.Status()
+				if err&self.NAND_STATUS_FAIL:
+					print 'Failed to write 2nd half of ', pageno, err
+					#return err
+					continue
+				break
 
-			self.sendCmd(self.NAND_CMD_READOOB)
-			self.sendCmd(self.NAND_CMD_SEQIN)
-			self.waitReady()
-			self.sendAddr(pageno<<8,self.AddrCycles)
-			self.waitReady()
-			self.writeData(data[self.PageSize:self.PageSize+self.OOBSize])
-			self.sendCmd(self.NAND_CMD_PAGEPROG)
-			err=self.Status()
-			if err&self.NAND_STATUS_FAIL:
-				return err
+			while 1:
+				self.sendCmd(self.NAND_CMD_READOOB)
+				self.sendCmd(self.NAND_CMD_SEQIN)
+				self.waitReady()
+				self.sendAddr(pageno<<8,self.AddrCycles)
+				self.waitReady()
+				self.writeData(data[self.PageSize:self.PageSize+self.OOBSize])
+				self.sendCmd(self.NAND_CMD_PAGEPROG)
+				err=self.Status()
+				if err&self.NAND_STATUS_FAIL:
+					print 'Failed to write OOB of ', pageno, err
+					#return err
+					continue
+				break
 
 		self.WriteProtect=True
 		return err
 
 	def writeBlock(self,block_data):
-		nand_tool.eraseBlock(0)
+		nand_tool.eraseBlockByPage(0)
 		page=0
 		for i in range(0,len(data),self.PageSize+self.OOBSize):
 			print 'Writing page:', page
 			nand_tool.writePage(pageno,data[i:i+self.PageSize+self.OOBSize])
 			page+=1
 
-	def writePages(self,filename,start_page=-1,end_page=-1):
+	def writePages(self,filename,offset=0,start_page=-1,end_page=-1):
 		fd=open(filename,'rb')
+		fd.seek(offset)
 		data=fd.read()
 
 		if start_page==-1:
@@ -482,57 +577,133 @@ class NandTool:
 		if end_page==-1:
 			end_page=self.PageCount-1
 
+		if self.CheckBadBlocksForWriting:
+			bad_blocks = self.CheckBadBlocks()
+
 		bytes=0
 		start = time.time()
-		page=0
-		for i in range(0,len(data),self.PageSize+self.OOBSize):
-			page_data=data[i:i+self.PageSize+self.OOBSize]
+		page=start_page
+		block=0
+		current_data_offset=0
+		current_block=0
+		while current_data_offset<len(data) and current_block<self.BlockCount:
+			if page%self.PagePerBlock == 0:
+				current_block+=1
+				if self.CheckBadBlocksForWriting and bad_blocks.has_key(page):
+					print 'Skipping bad block at ', page
+					page+=self.PagePerBlock
+					continue
+				self.eraseBlockByPage(page)
+			
+			page_data=data[current_data_offset:current_data_offset+self.PageSize+self.OOBSize]
+
+			if len(page_data)<=0:
+				print 'Not enough source data'
+				break
+
 			nand_tool.writePage(page,page_data)
 			
 			bytes+=len(page_data)
 			current = time.time()
-			print '%x/%lx (%d bytes/sec)\n\033[A' % (page, self.PageCount, bytes/(current-start)),
+			sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
 			page+=1
 
-			if page>end_page:
+			current_data_offset+=self.PageSize+self.OOBSize
+
+			if page>=end_page:
 				break
+
 		fd.close()
+
+	def Erase(self):
+		current_block=0
+		while current_block<self.BlockCount:
+			self.eraseBlockByPage(curret_block * self.PagePerBlock)
+
+	def EraseBlock(self,start_block, end_block):
+		for block in range(start_block, end_block+1, 1):
+			print "Erasing block", block
+			self.eraseBlockByPage(block * self.PagePerBlock)
 
 if __name__=='__main__':
 	from optparse import OptionParser
 
 	parser = OptionParser()
 	parser.add_option("-i", action="store_true", dest="information", default=False)
+
 	parser.add_option("-s", action="store_true", dest="seq", default=False,
 					help="Set sequential row read mode - some NAND models supports")
+
+	parser.add_option("-B", action="store_true", dest="badblocks", default=False,
+					help="Check badblocks")
+
+	parser.add_option("-e", action="store_true", dest="erase", default=False,
+					help="Erase")
+
+	parser.add_option("-j", action="store_true", dest="CheckJFFS2", default=False,
+					help="Check JFFS2 blocks")
+	
+	parser.add_option("-J", action="store_true", dest="DumpJFFS2", default=False,
+					help="Dump JFFS2 blocks")
+
+	parser.add_option("-O", action="store_true", dest="RemoveOOB", default=False,
+					help="Remove OOB lines")
+
 	parser.add_option("-S", action="store_true", dest="slow", default=False,
 					help="Set clock FTDI chip at 12MHz instead of 60MHz")
+
 	parser.add_option("-r", "--read", dest="read", default='', 
 					help="Read NAND Flash to a file", metavar="READ")
+
 	parser.add_option("-w", "--write", dest="write", default='',
 					help="Write file to a NAND Flash", metavar="WRITE")
-	parser.add_option("-R", type="int", nargs=2, dest="range")
+
+	parser.add_option("-o", type="int", default=0, dest="offset")
+
+	parser.add_option("-p", type="int", nargs=2, dest="pages")
+
+	parser.add_option("-b", type="int", nargs=2, dest="blocks")
 
 	(options, args) = parser.parse_args()
 	nand_tool = NandTool(options.slow)
 
+	nand_tool.DumpInfo()
 	if options.information:
-		nand_tool.DumpInfo()
+		pass
 
 	start_page=-1
 	end_page=-1
-	if options.range!=None:
-		if len(options.range)>0:
-			start_page=options.range[0]
-		if len(options.range)>1:
-			end_page=options.range[1]
+	if options.pages!=None:
+		if len(options.pages)>0:
+			start_page=options.pages[0]
+		if len(options.pages)>1:
+			end_page=options.pages[1]
+
+	elif options.blocks!=None:
+		if len(options.blocks)>0:
+			start_page=options.blocks[0] * nand_tool.PagePerBlock
+		if len(options.blocks)>1:
+			end_page=(options.blocks[1] + 1 ) * nand_tool.PagePerBlock
+
+	if options.DumpJFFS2:
+		[minimum_pageno, maximum_pageno] = nand_tool.CheckJFFS2()
+		start_page=minimum_pageno
+		end_page=maximum_pageno
+
 	if options.read:
-		nand_tool.DumpInfo()
 		if options.seq:
-			nand_tool.readSeqPages(options.read, start_page, end_page)
+			nand_tool.readSeqPages(options.read, start_page, end_page, options.RemoveOOB)
 		else:
-			nand_tool.readPages(options.read, start_page, end_page)
+			nand_tool.readPages(options.read, start_page, end_page, options.RemoveOOB)
 
 	if options.write:
-		nand_tool.DumpInfo()
-		nand_tool.writePages(options.write, start_page, end_page)
+		nand_tool.writePages(options.write, options.offset, start_page, end_page)
+
+	if options.badblocks:
+		nand_tool.CheckBadBlocks()
+
+	if options.CheckJFFS2:
+		nand_tool.CheckJFFS2()
+
+	if options.erase:
+		nand_tool.EraseBlock(options.blocks[0], options.blocks[1])
