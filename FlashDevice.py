@@ -550,7 +550,6 @@ class NandIO:
 			bytes+=len(page_data)
 			current = time.time()
 
-			print 'self.UseAnsi', self.UseAnsi
 			if self.UseAnsi:
 				sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n\033[A' % (page, self.PageCount, bytes/(current-start)))
 			else:
