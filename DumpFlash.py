@@ -1,6 +1,7 @@
 from optparse import OptionParser
-from FlashPage import *
-from FlashIO import *
+from FlashFile import *
+from FlashDevice import *
+from FlashUtil import *
 
 parser = OptionParser()
 
@@ -12,22 +13,32 @@ parser.add_option("-w", action="store_true", dest="write", default=False,
 				help="Write file to a NAND Flash")
 parser.add_option("-e", action="store_true", dest="erase", default=False,
 				help="Erase")
+parser.add_option("-B", action="store_true", dest="check_bad_blocks", default=False,
+				help="Check bad blocks")
+parser.add_option("-C", action="store_true", dest="check_ecc", default=False,
+				help="Check ECC")
+
+parser.add_option("-o", action="store_true", dest="add_oob", default=False,
+				help="Add OOB to the source")
+parser.add_option("-O", action="store_true", dest="remove_oob", default=False,
+				help="Remove OOB from the source")
+
 parser.add_option("-u", action="store_true", dest="find_uboot_images", default=False,
 				help="Find U-Boot images")
+parser.add_option("-U", action="store_true", dest="dump_uboot_images", default=False,
+				help="Dump U-Boot images")
+
 parser.add_option("-j", action="store_true", dest="find_jffs2", default=False,
 				help="Find JFFS2 Image")
-parser.add_option("-c", "--command", dest="command", default='',
-				help="Commands (CheckBadBlocks, CheckECC, AddOOB)", metavar="COMMAND")
 
-parser.add_option("-B", action="store_true", dest="RemoveOOB", default=False,
-				help="Remove OOB when processing")
 parser.add_option("-s", action="store_true", dest="seq", default=False,
 				help="Set sequential row read mode - some NAND models supports")
 parser.add_option("-S", action="store_true", dest="slow", default=False,
 				help="Set clock FTDI chip at 12MHz instead of 60MHz")
 parser.add_option("-f", "--filename", dest="filename", default='',
 				help="Use file instead of device for operations", metavar="FILENAME")
-parser.add_option("-o", type="int", default=0, dest="offset")
+
+parser.add_option("-s", type="int", default=0, dest="offset")
 parser.add_option("-p", type="int", nargs=2, dest="pages")
 parser.add_option("-b", type="int", nargs=2, dest="blocks")
 parser.add_option("-z", type="int", default=0, dest="size")
@@ -46,77 +57,57 @@ if options.pages!=None:
 	if len(options.pages)>1:
 		end_page=options.pages[1]
 
-if options.filename:
-	flash_page = Page()
-	flash_page.SetPageInfo(options.page_size, options.oob_size, options.pages_per_block)
+flash_util=FlashUtil(options.filename,options.page_size, options.oob_size, options.pages_per_block,options.slow)
 
-	if options.blocks!=None:
-		if len(options.blocks)>0:
-			start_page=options.blocks[0] * options.pages_per_block
-		if len(options.blocks)>1:
-			end_page=(options.blocks[1] + 1 ) * options.pages_per_block
+if options.blocks!=None:
+	if len(options.blocks)>0:
+		start_page=options.blocks[0] * flash_util.io.PagePerBlock
+	if len(options.blocks)>1:
+		end_page=(options.blocks[1] + 1 ) * flash_util.io.PagePerBlock
 
-	if flash_page.Open(options.filename):
-		if options.command=="CheckBadBlocks":
-			print 'Check bad blocks:'
-			flash_page.CheckBadBlocks()
-	
-		if options.command=="CheckECC":
-			print 'Check ECC:'
-			flash_page.CheckECC()
-	
-		if options.find_jffs2:
-			print 'Find JFFS2:'
-			flash_page.FindJFFS2()
+if options.information:
+	flash_util.io.DumpInfo()
 
-		if options.RemoveOOB:
-			print 'Extract pages(0x%x - 0x%x) to %s' % ( start_page, end_page, args[0])
-			flash_page.RemoveOOBByPage(args[0],  start_page , end_page )
+if options.read:
+	filename=args[0]
+	if options.seq:
+		flash_util.readSeqPages(start_page, end_page, options.RemoveOOB, filename)
+	else:
+		flash_util.readPages(start_page, end_page, options.RemoveOOB, filename)
 
-		if options.command=="AddOOB":
-			flash_page.AddOOB(filename,args[0],options.size)
+if options.write:
+	filename=args[0]
+	flash_util.writePages(filename, options.offset, start_page, end_page)
 
-		if options.find_uboot_images:
-			flash_page.FindUBootImages()
+if options.erase:
+	flash_util.EraseBlock(options.blocks[0], options.blocks[1])
 
-		flash_page.Close()
+if options.check_bad_blocks:
+	flash_util.CheckBadBlocks()
 
-else:
-	nand_io = NandIO(options.slow)
+if options.check_ecc:
+	flash_util.CheckECC()
 
-	nand_io.DumpInfo()
-	if options.information:
-		pass
+if options.add_oob:
+	output_filename = args[0]
+	print 'Remove OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
+	flash_util.AddOOB(filename,output_filename,options.size)
 
-	if options.blocks!=None:
-		if len(options.blocks)>0:
-			start_page=options.blocks[0] * nand_io.PagePerBlock
-		if len(options.blocks)>1:
-			end_page=(options.blocks[1] + 1 ) * nand_io.PagePerBlock
+if options.remove_oob:
+	output_filename = args[0]
+	print 'Remove OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
+	flash_util.RemoveOOBByPage(output_filename,  start_page , end_page )
 
-	"""
-	if options.DumpJFFS2:
-		[minimum_pageno, maximum_pageno] = nand_io.CheckJFFS2()
-		start_page=minimum_pageno
-		end_page=maximum_pageno
-	"""
+if options.find_uboot_images:
+	flash_util.FindUBootImages()
 
-	if options.read:
-		filename=args[0]
-		if options.seq:
-			nand_io.readSeqPages(filename, start_page, end_page, options.RemoveOOB)
-		else:
-			nand_io.readPages(filename, start_page, end_page, options.RemoveOOB)
+if options.dump_uboot_images:
+	flash_util.DumpUBootImages()
 
-	if options.write:
-		filename=args[0]
-		nand_io.writePages(filename, options.offset, start_page, end_page)
+if options.find_jffs2:
+	flash_util.FindJFFS2()
 
-	if options.command=="CheckBadBlocks":
-		nand_io.CheckBadBlocks()
-
-	if options.command=="CheckJFFS2":
-		nand_io.CheckJFFS2()
-
-	if options.erase:
-		nand_io.EraseBlock(options.blocks[0], options.blocks[1])
+if options.DumpJFFS2:
+	[minimum_pageno, maximum_pageno] = flash_util.FindJFFS2()
+	start_page=minimum_pageno
+	end_page=maximum_pageno

@@ -300,6 +300,9 @@ class NandIO:
 		if self.PageSize>0:
 			self.PageCount=(self.ChipSizeMB*1024*1024)/self.PageSize
 
+		self.RawPageSize=self.PageSize+self.OOBSize
+		self.BlockSize=self.PagePerBlock*self.RawPageSize
+
 	def DumpInfo(self):
 		print 'Name:\t\t',self.Name
 		print 'ID:\t\t0x%x' % self.ID
@@ -408,7 +411,7 @@ class NandIO:
 		bad_block=False
 
 		for i in range(0,self.PagePerBlock,1):
-			page_data = self.readFlashData(self.PageSize+self.OOBSize)
+			page_data = self.readFlashData(self.RawPageSize)
 
 			if i==0 or i==1:
 				if page_data[self.PageSize+5]!=0xff:
@@ -432,39 +435,6 @@ class NandIO:
 				data+=chr(ch)
 
 		return data
-
-	def readSeqPages(self, start_page=-1, end_page=-1, remove_oob=False, filename='', append=False):
-		if filename:
-			if append:
-				fd=open(filename,'ab')
-			else:
-				fd=open(filename,'wb')
-		
-		if start_page==-1:
-			start_page=0
-
-		if end_page==-1:
-			end_page=self.PageCount-1
-
-		whole_data=''
-		length=0
-		start = time.time()
-		for page in range(start_page,end_page+1,self.PagePerBlock):
-			data=self.readSeq(page, remove_oob)
-
-			if filename:
-				fd.write(data)
-			else:
-				whole_data+=data
-
-			length+=len(data)
-			current = time.time()
-			#sys.stdout.write('%d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
-
-		if filename:
-			fd.close()
-
-		return whole_data
 
 	def eraseBlockByPage(self,pageno):
 		self.WriteProtect=False
@@ -526,7 +496,7 @@ class NandIO:
 				self.waitReady()
 				self.sendAddr(pageno<<8,self.AddrCycles)
 				self.waitReady()
-				self.writeData(data[self.PageSize:self.PageSize+self.OOBSize])
+				self.writeData(data[self.PageSize:self.RawPageSize])
 				self.sendCmd(self.NAND_CMD_PAGEPROG)
 				err=self.Status()
 				if err&self.NAND_STATUS_FAIL:
@@ -541,9 +511,9 @@ class NandIO:
 	def writeBlock(self,block_data):
 		nand_tool.eraseBlockByPage(0)
 		page=0
-		for i in range(0,len(data),self.PageSize+self.OOBSize):
+		for i in range(0,len(data),self.RawPageSize):
 			print 'Writing page:', page
-			nand_tool.writePage(pageno,data[i:i+self.PageSize+self.OOBSize])
+			nand_tool.writePage(pageno,data[i:i+self.RawPageSize])
 			page+=1
 
 	def writePages(self,filename,offset=0,start_page=-1,end_page=-1):
@@ -575,7 +545,7 @@ class NandIO:
 					continue
 				self.eraseBlockByPage(page)
 			
-			page_data=data[current_data_offset:current_data_offset+self.PageSize+self.OOBSize]
+			page_data=data[current_data_offset:current_data_offset+self.RawPageSize]
 
 			if len(page_data)<=0:
 				print 'Not enough source data'
@@ -585,10 +555,10 @@ class NandIO:
 			
 			bytes+=len(page_data)
 			current = time.time()
-			#sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
+			sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
 			page+=1
 
-			current_data_offset+=self.PageSize+self.OOBSize
+			current_data_offset+=self.RawPageSize
 
 			if page>=end_page:
 				break

@@ -1,18 +1,17 @@
 from optparse import OptionParser
 from FlashFile import *
-from FlashIO import *
+from FlashDevice import *
 from DumpUBoot import *
 from ECC import *
 
 class FlashUtil:
-	def __init__(self, filename=''):
+	def __init__(self, filename='', page_size=0x200, oob_size=0x10, page_per_block=0x20,slow=False):
 		self.UseSequentialMode=False
 
 		if filename:
-			self.io = FlashFile(filename)
+			self.io = FlashFile(filename, page_size, oob_size, page_per_block)
 		else:
-			self.io = NandIO()
-			self.io.DumpInfo()
+			self.io = NandIO(slow)
 
 	def CheckECC(self):
 		block = 0
@@ -20,26 +19,25 @@ class FlashUtil:
 		count=0
 		error_count=0
 
+		ecc=ECC()
 		while 1:
-			for page in range(0,self.PagePerBlock,1):
-				offset = (block * (self.PageSize+self.OOBSize) * self.PagePerBlock) + page * (self.PageSize+self.OOBSize)
-				self.fd.seek(offset,0)
-				data = self.fd.read(self.PageSize+self.OOBSize)
-				
+			for page in range(0,self.io.PagePerBlock,1):
+				data=self.io.readPage(block * self.io.PagePerBlock)
+
 				if not data:
 					end_of_file=True
 					break
 	
 				count+=1
-				body = data[0:self.PageSize]
-				ecc0_ = ord(data[self.PageSize])
-				ecc1_ = ord(data[self.PageSize+1])
-				ecc2_ = ord(data[self.PageSize+2])
+				body = data[0:self.io.PageSize]
+				ecc0_ = ord(data[self.io.PageSize])
+				ecc1_ = ord(data[self.io.PageSize+1])
+				ecc2_ = ord(data[self.io.PageSize+2])
 		
 				if ecc0_==0xff and ecc1_==0xff and ecc2_==0xff:
 					continue
 		
-				(ecc0, ecc1, ecc2) = self.CalcECC(body)
+				(ecc0, ecc1, ecc2) = ecc.CalcECC(body)
 		
 				ecc0_xor = ecc0 ^ ecc0_
 				ecc1_xor = ecc1 ^ ecc1_
@@ -77,7 +75,9 @@ class FlashUtil:
 
 	def IsBadBlock(self,block):
 		for page in range(0,2,1):
-			bad_block_byte = self.readData(block * self.io.PagePerBlock, self.io.PageSize + 6)[self.io.PageSize + 5:self.io.PageSize + 6]
+			current_page=block * self.io.PagePerBlock + page
+			oob=self.io.readOOB(block * self.io.PagePerBlock + page)
+			bad_block_byte = oob[6:7]
 			if not bad_block_byte:
 				return self.ERROR
 
@@ -95,7 +95,7 @@ class FlashUtil:
 
 			if ret==self.BAD_BLOCK:
 				error_count+=1
-				print "Bad block: %d (at 0x%x)" % (block, (block * self.BlockSize ))
+				print "Bad block: %d (at 0x%x)" % (block, (block * self.io.BlockSize ))
 	
 			elif ret==self.ERROR:
 				break
@@ -130,12 +130,150 @@ class FlashUtil:
 			
 			length+=len(data)
 			current = time.time()
-			#sys.stdout.write('%d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
+			sys.stdout.write('%d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
 		
 		if filename:
 			fd.close()
 
 		return whole_data
+
+	def readSeqPages(self, start_page=-1, end_page=-1, remove_oob=False, filename='', append=False):
+		if filename:
+			if append:
+				fd=open(filename,'ab')
+			else:
+				fd=open(filename,'wb')
+		
+		if start_page==-1:
+			start_page=0
+
+		if end_page==-1:
+			end_page=self.io.PageCount-1
+
+		whole_data=''
+		length=0
+		start = time.time()
+		for page in range(start_page,end_page+1,self.io.PagePerBlock):
+			data=self.io.readSeq(page, remove_oob)
+
+			if filename:
+				fd.write(data)
+			else:
+				whole_data+=data
+
+			length+=len(data)
+			current = time.time()
+			sys.stdout.write('%d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
+
+		if filename:
+			fd.close()
+
+		return whole_data
+
+	def AddOOB(self,filename, output_filename, size=0):
+		fd=open(filename,'rb')
+		wfd=open(output_filename,"wb")
+
+		current_block_number=0
+		current_output_size=0
+		ecc=ECC()
+		while 1:
+			page=fd.read(self.PageSize)
+
+			if not page:
+				break
+
+			(ecc0, ecc1, ecc2) = ecc.CalcECC(page)
+
+			oob_postfix='\xFF' * 13
+			if current_output_size% self.BlockSize==0:
+				if current_block_number%2==0:
+					oob_postfix="\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
+				current_block_number+=1
+
+			data=page + struct.pack('BBB',ecc0,ecc1,ecc2) + oob_postfix
+			wfd.write(data)
+			current_output_size += len(data)
+
+		#Write blank pages
+		while size>current_output_size:
+			if current_output_size% self.BlockSize==0:
+				wfd.write("\xff"*0x200+ "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00")
+			else:
+				wfd.write("\xff"*0x210)
+			current_output_size+=0x210
+
+		fd.close()
+		wfd.close()
+
+	def RemoveOOBByPage(self, output_filename, start_page=0, end_page=-1, preserve_oob = False):
+		if start_page==-1:
+			start_page=0
+
+		if end_page==-1:
+			end=self.io.BlockSize*self.io.RawPageSize*self.io.PagePerBlock
+		else:
+			end=end_page * self.io.RawPageSize
+
+		return self.RemoveOOB(output_filename, start_page * self.io.RawPageSize, end, preserve_oob)
+
+	def RemoveOOB(self, output_filename, start=0, end=-1, preserve_oob = False):
+		if start==-1:
+			start=0
+
+		if end==-1:
+			end=self.BlockSize*self.RawPageSize*self.PagePerBlock
+
+		wfd=open(output_filename,"wb")
+
+		start_block = start / self.io.BlockSize
+		start_block_offset = start % self.io.BlockSize
+		start_page = start_block_offset / self.io.RawPageSize
+		start_page_offset = start_block_offset % self.io.RawPageSize
+
+		end_block = end / self.io.BlockSize
+		end_block_offset = end % self.io.BlockSize
+		end_page = end_block_offset / self.io.RawPageSize
+		end_page_offset = end_block_offset % self.io.RawPageSize
+
+		print 'Dumping blocks (Block: 0x%x Page: 0x%x ~  Block: 0x%x Page: 0x%x)' % (start_block, start_block_offset, end_block, end_block_offset)
+
+		for block in range(start_block,end_block+1,1):
+			ret=self.IsBadBlock(block)
+
+			if ret==self.CLEAN_BLOCK:
+				current_start_page=0
+				current_end_page=self.io.PagePerBlock
+
+				if block==start_block:
+					current_start_page=start_page
+				elif block==end_block:
+					current_end_page=end_page+1
+
+				for page in range(current_start_page,current_end_page,1):
+					data=self.io.readPage(block * self.io.PagePerBlock)
+
+					if preserve_oob:
+						write_size=self.RawPageSize
+					else:
+						write_size=self.io.PageSize
+
+					if block==start_block and page==current_start_page and start_page_offset>0:
+						wfd.write(data[start_page_offset:write_size])
+
+					elif block==end_block and page==current_end_page-1 and end_page_offset>=0:
+						wfd.write(data[0:end_page_offset])
+
+					else:
+						wfd.write(data[0:write_size])
+
+			elif ret==self.ERROR:
+				break
+
+			else:
+				print "Skipping block %d" % block
+		
+		wfd.close()
 
 	def readData(self,start_page,length,filename=''):
 		start_block=start_page / self.io.PagePerBlock
@@ -201,7 +339,8 @@ class FlashUtil:
 			if magic=='\x27\x05\x19\x56':
 				print 'U-Boot Image found at block 0x%x' % ( block )
 				uimage=uImage()
-				uimage.ParseHeader(magic+self.readData(block*self.io.PagePerBlock, 60))
+				uimage.ParseHeader(self.readData(block*self.io.PagePerBlock, 64))
+				uimage.DumpHeader()
 				print ''
 
 			block += 1
@@ -269,25 +408,22 @@ class FlashUtil:
 
 	def FindJFFS2(self):
 		block = 0
-		end_of_file=False
-		error_count=0
 
 		while 1:
 			ret = self.IsBadBlock(block) 
 			if ret == self.CLEAN_BLOCK:
-				page=0
-				block_offset = (block * self.BlockSize ) + (page * (self.PageSize + self.OOBSize))
-				self.fd.seek( block_offset + self.PageSize)
-				oob = self.fd.read(self.OOBSize)
+				oob = self.io.readOOB(block*self.io.PagePerBlock)
 	
 				if not oob:
 					break
 
-				if oob[8:] == '\x85\x19\x03\x20\x08\x00\x00\x00': # and oob[0:3]!='\xff\xff\xff'
-					print "JFFS2 block: %d (at file offset 0x%x) - ECC: %.2x %.2x %.2x" % (block, (block * self.BlockSize ), ord(oob[0]), ord(oob[1]), ord(oob[2]))
+				if oob[8:] == '\x85\x19\x03\x20\x08\x00\x00\x00':
+					print "JFFS2 block: %d (at file offset 0x%x)" % (block, (block * self.io.BlockSize ))
 
 			elif ret == self.ERROR:
 				break
+			else:
+				print 'Bad block', block
 
 			block += 1
 
