@@ -6,12 +6,17 @@ from ECC import *
 
 class FlashUtil:
 	def __init__(self, filename='', page_size=0x200, oob_size=0x10, page_per_block=0x20,slow=False):
+		self.UseAnsi=False
 		self.UseSequentialMode=False
 
 		if filename:
 			self.io = FlashFile(filename, page_size, oob_size, page_per_block)
 		else:
 			self.io = NandIO(slow)
+		
+	def SetUseAnsi(self,use_ansi):
+		self.UseAnsi=use_ansi
+		self.io.SetUseAnsi(use_ansi)
 
 	def CheckECC(self):
 		block = 0
@@ -130,7 +135,11 @@ class FlashUtil:
 			
 			length+=len(data)
 			current = time.time()
-			sys.stdout.write('%d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
+
+			if self.UseAnsi:
+				sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n\033[A' % (page, end_page, length/(current-start)))
+			else:
+				sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
 		
 		if filename:
 			fd.close()
@@ -163,7 +172,11 @@ class FlashUtil:
 
 			length+=len(data)
 			current = time.time()
-			sys.stdout.write('%d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
+
+			if self.UseAnsi:
+				sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n\033[A' % (page, end_page, length/(current-start)))
+			else:
+				sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
 
 		if filename:
 			fd.close()

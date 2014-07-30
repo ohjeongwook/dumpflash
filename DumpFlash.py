@@ -51,6 +51,18 @@ parser.add_option("-K", type="int", default=32, dest="pages_per_block")
 
 (options, args) = parser.parse_args()
 
+use_ansi=False
+try:
+	import colorama
+	colorama.init()
+	use_ansi=True
+except:
+	try:
+		import tendo.ansiterm
+		use_ansi=True
+	except:
+		pass
+
 start_page=-1
 end_page=-1
 if options.pages!=None:
@@ -60,6 +72,8 @@ if options.pages!=None:
 		end_page=options.pages[1]
 
 flash_util=FlashUtil(options.filename,options.page_size, options.oob_size, options.pages_per_block,options.slow)
+
+flash_util.SetUseAnsi(use_ansi)
 
 if options.blocks!=None:
 	if len(options.blocks)>0:
@@ -73,9 +87,9 @@ if options.information:
 if options.read:
 	filename=args[0]
 	if options.seq:
-		flash_util.readSeqPages(start_page, end_page, options.RemoveOOB, filename)
+		flash_util.readSeqPages(start_page, end_page, options.remove_oob, filename)
 	else:
-		flash_util.readPages(start_page, end_page, options.RemoveOOB, filename)
+		flash_util.readPages(start_page, end_page, options.remove_oob, filename)
 
 if options.write:
 	filename=args[0]
@@ -95,7 +109,7 @@ if options.add_oob:
 	print 'Remove OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
 	flash_util.AddOOB(filename,output_filename,options.size)
 
-if options.remove_oob:
+if options.remove_oob and len(arg)>0:
 	output_filename = args[0]
 	print 'Remove OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
 	flash_util.RemoveOOBByPage(output_filename,  start_page , end_page )

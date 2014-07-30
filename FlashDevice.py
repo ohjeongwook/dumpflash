@@ -131,16 +131,7 @@ class NandIO:
 	UseSequentialMode=False
 
 	def __init__(self, do_slow=False):
-	
-		try:
-			import colorama
-			colorama.init()
-		except:
-			try:
-				import tendo.ansiterm
-			except:
-				pass
-
+		self.UseAnsi=False
 		self.Ftdi = Ftdi()
 		self.Ftdi.open(0x0403,0x6010,interface=1)
 		self.Ftdi.set_bitmode(0, self.Ftdi.BITMODE_MCU)
@@ -156,6 +147,9 @@ class NandIO:
 		self.Ftdi.write_data(Array('B', [Ftdi.SET_BITS_HIGH,0x0,0x1]))
 		self.waitReady()
 		self.GetID()
+
+	def SetUseAnsi(self,use_ansi):
+		self.UseAnsi=use_ansi
 
 	def Test(self):
 		self.Ftdi.write_data(Array('B', [Ftdi.SET_BITS_HIGH,0x0,0x1]))
@@ -555,7 +549,13 @@ class NandIO:
 			
 			bytes+=len(page_data)
 			current = time.time()
-			sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
+
+			print 'self.UseAnsi', self.UseAnsi
+			if self.UseAnsi:
+				sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n\033[A' % (page, self.PageCount, bytes/(current-start)))
+			else:
+				sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
+
 			page+=1
 
 			current_data_offset+=self.RawPageSize

@@ -6,9 +6,13 @@ class FlashFile:
 	def __init__(self,filename, page_size=0x200, oob_size=0x10, page_per_block=0x20):
 		self.DebugLevel=0
 		self.FileSize=0
+		self.UseAnsi=False
 
 		self.Open(filename)
 		self.SetPageInfo(page_size,oob_size,page_per_block)
+
+	def SetUseAnsi(self,use_ansi):
+		self.UseAnsi=use_ansi
 
 	def SetPageInfo(self, page_size, oob_size, page_per_block):
 		self.PageSize=page_size
