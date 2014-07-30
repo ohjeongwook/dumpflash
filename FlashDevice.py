@@ -3,6 +3,7 @@ from array import array as Array
 import time
 import sys
 import pprint
+from DumpUBoot import *
 
 class NandIO:
 	ADR_CE=0x10
@@ -116,12 +117,18 @@ class NandIO:
 	]
 
 	Debug=0
+	
+	PageSize=0
+	OOBSize=0
+	PageCount=0
 	BlockCount=4096
 	PagePerBlock=32
+
 	WriteProtect=True
 	CheckBadBlock=True
 	CheckBadBlocksForWriting=False
 	RemoveOOB=False
+	UseSequentialMode=False
 
 	def __init__(self, do_slow=False):
 	
@@ -218,10 +225,10 @@ class NandIO:
 
 	def Status(self):
 		self.sendCmd(0x70)
-		status=self.readData(1)[0]
+		status=self.readFlashData(1)[0]
 		return status
 
-	def readData(self,count):
+	def readFlashData(self,count):
 		return self.nandRead(0,0,count)
 
 	def writeData(self,count):
@@ -230,7 +237,7 @@ class NandIO:
 	def GetID(self):
 		self.sendCmd(self.NAND_CMD_READID)
 		self.sendAddr(0,1)
-		id=self.readData(8)
+		id=self.readFlashData(8)
 
 		self.Name=''
 		self.ID=0
@@ -247,7 +254,7 @@ class NandIO:
 		#Check ONFI
 		self.sendCmd(self.NAND_CMD_READID)
 		self.sendAddr(0x20,1)
-		id=self.readData(4)
+		id=self.readFlashData(4)
 
 		onfi=False
 		if id[0]=='O' and id[1]=='N' and id[2]=='F' and id[3]=='I':
@@ -257,7 +264,7 @@ class NandIO:
 			self.sendCmd(self.NAND_CMD_ONFI)
 			self.sendAddr(0,1)
 			self.waitReady()
-			onfi_data=self.readData(0x100)
+			onfi_data=self.readFlashData(0x100)
 			if onfi_data[0]==0x4F and onfi_data[1]==0x4E and onfi_data[2]==0x46 and onfi_data[3]==0x49:
 				onfi=True
 			else:
@@ -304,6 +311,19 @@ class NandIO:
 		print 'Options:\t',self.Options
 		print 'Address cycle:\t',self.AddrCycles
 		print 'Manufacturer:\t',self.Manufacturer
+		print ''
+
+	def CheckBadBlocks(self):
+		bad_blocks={}
+		for pageno in range(0,self.PageCount,self.PagePerBlock):
+			for pageoff in range(0,2,1):
+				oob=self.readOOB(pageno+pageoff)
+
+				if oob[5]!='\xff':
+					print 'Bad block found:', pageno
+					bad_blocks[pageno]=1
+					break
+		return bad_blocks
 
 	def readOOB(self,pageno):
 		bytes=[]
@@ -314,7 +334,7 @@ class NandIO:
 			self.waitReady()
 			self.sendAddr(pageno<<8,self.AddrCycles)
 			self.waitReady()
-			bytes+=self.readData(self.OOBSize)
+			bytes+=self.readFlashData(self.OOBSize)
 
 		data=''
 
@@ -338,10 +358,10 @@ class NandIO:
 					read_len=0x1000
 					if len<0x1000:
 						read_len=len
-					bytes+=self.readData(read_len)
+					bytes+=self.readFlashData(read_len)
 					len-=0x1000
 			else:
-				bytes=self.readData(self.PageSize)
+				bytes=self.readFlashData(self.PageSize)
 
 			self.sendCmd(self.NAND_CMD_READ0)
 			self.waitReady()
@@ -349,7 +369,7 @@ class NandIO:
 			self.waitReady()
 			self.sendCmd(self.NAND_CMD_READSTART)
 			self.waitReady()
-			bytes+=self.readData(self.PageSize)
+			bytes+=self.readFlashData(self.PageSize)
 
 			#TODO: Implement remove_oob
 		else:
@@ -357,79 +377,27 @@ class NandIO:
 			self.waitReady()
 			self.sendAddr(pageno<<8,self.AddrCycles)
 			self.waitReady()
-			bytes+=self.readData(self.PageSize/2)
+			bytes+=self.readFlashData(self.PageSize/2)
 
 			self.sendCmd(self.NAND_CMD_READ1)
 			self.waitReady()
 			self.sendAddr(pageno<<8,self.AddrCycles)
 			self.waitReady()
-			bytes+=self.readData(self.PageSize/2)
+			bytes+=self.readFlashData(self.PageSize/2)
 
 			if not remove_oob:
 				self.sendCmd(self.NAND_CMD_READOOB)
 				self.waitReady()
 				self.sendAddr(pageno<<8,self.AddrCycles)
 				self.waitReady()
-				bytes+=self.readData(self.OOBSize)
+				bytes+=self.readFlashData(self.OOBSize)
 
 		data=''
 
 		for ch in bytes:
 			data+=chr(ch)
 		return data
-
-	def readPages(self,filename,start_page=-1,end_page=-1,remove_oob=False):
-		fd=open(filename,'wb')
 		
-		if start_page==-1:
-			start_page=0
-
-		if end_page==-1:
-			end_page=self.PageCount+1
-
-		bytes=0
-		start = time.time()
-		for page in range(start_page,end_page,1):
-			data=self.readPage(page,remove_oob)
-			fd.write(data)
-			
-			bytes+=len(data)
-			current = time.time()
-			sys.stdout.write('%x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
-		fd.close()
-
-	def CheckBadBlocks(self):
-		bad_blocks={}
-		for pageno in range(0,self.PageCount,self.PagePerBlock):
-			for pageoff in range(0,2,1):
-				oob=self.readOOB(pageno+pageoff)
-
-				if oob[5]!='\xff':
-					print 'Bad block found:', pageno
-					bad_blocks[pageno]=1
-					break
-		return bad_blocks
-
-	def CheckJFFS2(self):
-		bad_blocks={}
-		minimum_pageno=-1
-		maximum_pageno=-1
-		for pageno in range(0,self.PageCount,self.PagePerBlock):
-			oob=self.readOOB(pageno)
-
-			if oob[8:]=='\x85\x19\x03\x20\x08\x00\x00\x00':
-				print 'JFFS2 block found:', pageno
-
-				if minimum_pageno == -1:
-					minimum_pageno = pageno
-				maximum_pageno = pageno
-			elif oob[0:3]=='\xff\xff\xff':
-				print 'blank page'
-			else:
-				print 'OOB: ', pageno, pprint.pprint(oob)
-
-		return [minimum_pageno, maximum_pageno]
-
 	def readSeq(self,pageno,remove_oob=False):
 		page=[]
 		self.sendCmd(self.NAND_CMD_READ0)
@@ -440,7 +408,7 @@ class NandIO:
 		bad_block=False
 
 		for i in range(0,self.PagePerBlock,1):
-			page_data = self.readData(self.PageSize+self.OOBSize)
+			page_data = self.readFlashData(self.PageSize+self.OOBSize)
 
 			if i==0 or i==1:
 				if page_data[self.PageSize+5]!=0xff:
@@ -465,8 +433,12 @@ class NandIO:
 
 		return data
 
-	def readSeqPages(self, filename, start_page=-1, end_page=-1, remove_oob=False):
-		fd=open(filename,'wb')
+	def readSeqPages(self, start_page=-1, end_page=-1, remove_oob=False, filename='', append=False):
+		if filename:
+			if append:
+				fd=open(filename,'ab')
+			else:
+				fd=open(filename,'wb')
 		
 		if start_page==-1:
 			start_page=0
@@ -474,17 +446,25 @@ class NandIO:
 		if end_page==-1:
 			end_page=self.PageCount-1
 
-		bytes=0
+		whole_data=''
+		length=0
 		start = time.time()
 		for page in range(start_page,end_page+1,self.PagePerBlock):
 			data=self.readSeq(page, remove_oob)
-			fd.write(data)
 
-			bytes+=len(data)
+			if filename:
+				fd.write(data)
+			else:
+				whole_data+=data
+
+			length+=len(data)
 			current = time.time()
-			sys.stdout.write('%x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
+			#sys.stdout.write('%d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
 
-		fd.close()
+		if filename:
+			fd.close()
+
+		return whole_data
 
 	def eraseBlockByPage(self,pageno):
 		self.WriteProtect=False
@@ -601,11 +581,11 @@ class NandIO:
 				print 'Not enough source data'
 				break
 
-			nand_tool.writePage(page,page_data)
+			self.writePage(page,page_data)
 			
 			bytes+=len(page_data)
 			current = time.time()
-			sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
+			#sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
 			page+=1
 
 			current_data_offset+=self.PageSize+self.OOBSize
