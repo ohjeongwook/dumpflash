@@ -8,6 +8,7 @@ class FlashUtil:
 	def __init__(self, filename='', page_size=0x200, oob_size=0x10, page_per_block=0x20,slow=False):
 		self.UseAnsi=False
 		self.UseSequentialMode=False
+		self.DumpProgress=True
 
 		if filename:
 			self.io = FlashFile(filename, page_size, oob_size, page_per_block)
@@ -136,10 +137,11 @@ class FlashUtil:
 			length+=len(data)
 			current = time.time()
 
-			if self.UseAnsi:
-				sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n\033[A' % (page, end_page, length/(current-start)))
-			else:
-				sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
+			if self.DumpProgress:
+				if self.UseAnsi:
+					sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n\033[A' % (page, end_page, length/(current-start)))
+				else:
+					sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
 		
 		if filename:
 			fd.close()
@@ -173,10 +175,11 @@ class FlashUtil:
 			length+=len(data)
 			current = time.time()
 
-			if self.UseAnsi:
-				sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n\033[A' % (page, end_page, length/(current-start)))
-			else:
-				sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
+			if self.DumpProgress:
+				if self.UseAnsi:
+					sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n\033[A' % (page, end_page, length/(current-start)))
+				else:
+					sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
 
 		if filename:
 			fd.close()
@@ -316,6 +319,7 @@ class FlashUtil:
 				break
 			block+=1
 
+		self.DumpProgress=False
 		data=''
 		for block in blocks:
 			start_page=block * self.io.PagePerBlock
@@ -327,10 +331,10 @@ class FlashUtil:
 				data+=self.readSeqPages(start_page, end_page, True, filename, append=True)
 			else:
 				data+=self.readPages(start_page,end_page,True, filename, append=True)
-			
+
 			if len(data)>length:
 				break
-
+		self.DumpProgress=True
 		return data[0:length]
 
 
@@ -344,10 +348,9 @@ class FlashUtil:
 			if ret==self.BAD_BLOCK:
 				pass
 			elif ret==self.ERROR:
-				print 'Error found', block
 				break
 
-			magic=self.readData(block*self.io.PagePerBlock, 4)
+			magic=self.io.readPage(block*self.io.PagePerBlock)[0:4]
 
 			if magic=='\x27\x05\x19\x56':
 				print 'U-Boot Image found at block 0x%x' % ( block )
