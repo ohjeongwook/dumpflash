@@ -109,6 +109,9 @@ class uImage:
 	COMP_GZIP=1
 	COMP_BZIP2=2
 
+	def __init__(self):
+		pass
+
 	def GetOSString(self,os):
 		if os==self.IH_OS_INVALID:
 			return self.IH_OS_STR_INVALID
@@ -223,14 +226,18 @@ class uImage:
 		elif comp==self.COMP_BZIP2:
 			return "bzip2"
 
-	def __init__(self,filename):
+	def ParseFile(self,filename):
 		self.filename=filename
 		fd=open(self.filename,'rb')
 		header=fd.read(0x40)
 		fd.close()
 
+		self.ParseHeader(header)
+
+	def ParseHeader(self,header):
 		(self.magic,self.hcrc,self.time,self.size,self.load,self.ep,self.dcrc,self.os,self.arch,self.type,self.comp,self.name)=struct.unpack(">LLLLLLLBBBB32s", header)
 
+	def DumpHeader(self):
 		print 'Magic:\t0x%x'% (self.magic)
 		print 'HCRC:\t0x%x'% (self.hcrc)
 		print 'Time:\t0x%x'% (self.time)
@@ -289,6 +296,7 @@ if __name__=='__main__':
 	import sys
 	filename=sys.argv[1]
 
-	uimage=uImage(filename)
+	uimage=uImage()
+	uimage.ParseFile(filename)
 	uimage.Extract()
 
