@@ -186,7 +186,7 @@ class FlashUtil:
 
 		return whole_data
 
-	def AddOOB(self,filename, output_filename, size=0):
+	def AddOOB(self,filename, output_filename, jffs2=False):
 		fd=open(filename,'rb')
 		wfd=open(output_filename,"wb")
 
@@ -194,7 +194,7 @@ class FlashUtil:
 		current_output_size=0
 		ecc=ECC()
 		while 1:
-			page=fd.read(self.PageSize)
+			page=fd.read(self.io.PageSize)
 
 			if not page:
 				break
@@ -202,8 +202,9 @@ class FlashUtil:
 			(ecc0, ecc1, ecc2) = ecc.CalcECC(page)
 
 			oob_postfix='\xFF' * 13
-			if current_output_size% self.BlockSize==0:
-				if current_block_number%2==0:
+
+			if current_output_size% self.io.BlockSize==0:
+				if jffs2 and current_block_number%2==0:
 					oob_postfix="\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
 				current_block_number+=1
 
@@ -212,12 +213,14 @@ class FlashUtil:
 			current_output_size += len(data)
 
 		#Write blank pages
+		"""
 		while size>current_output_size:
 			if current_output_size% self.BlockSize==0:
 				wfd.write("\xff"*0x200+ "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00")
 			else:
 				wfd.write("\xff"*0x210)
 			current_output_size+=0x210
+		"""
 
 		fd.close()
 		wfd.close()

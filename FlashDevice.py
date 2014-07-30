@@ -4,6 +4,7 @@ import time
 import sys
 import pprint
 from DumpUBoot import *
+from ECC import *
 
 class NandIO:
 	ADR_CE=0x10
@@ -510,7 +511,7 @@ class NandIO:
 			nand_tool.writePage(pageno,data[i:i+self.RawPageSize])
 			page+=1
 
-	def writePages(self,filename,offset=0,start_page=-1,end_page=-1):
+	def writePages(self,filename,offset=0,start_page=-1,end_page=-1,add_oob=False,jffs2=False):
 		fd=open(filename,'rb')
 		fd.seek(offset)
 		data=fd.read()
@@ -524,40 +525,53 @@ class NandIO:
 		if self.CheckBadBlocksForWriting:
 			bad_blocks = self.CheckBadBlocks()
 
-		bytes=0
+		length=0
 		start = time.time()
 		page=start_page
 		block=0
 		current_data_offset=0
 		current_block=0
+		ecc=ECC()
 		while current_data_offset<len(data) and current_block<self.BlockCount:
+			oob_postfix='\xFF' * 13
 			if page%self.PagePerBlock == 0:
 				current_block+=1
 				if self.CheckBadBlocksForWriting and bad_blocks.has_key(page):
 					print 'Skipping bad block at ', page
-					page+=self.PagePerBlock
+					page+=selpage_dataf.PagePerBlock
 					continue
 				self.eraseBlockByPage(page)
+				
+				if jffs2:
+					oob_postfix="\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
 			
-			page_data=data[current_data_offset:current_data_offset+self.RawPageSize]
+			if add_oob:
+				orig_page_data=data[current_data_offset:current_data_offset+self.PageSize]
+				current_data_offset+=self.PageSize
 
-			if len(page_data)<=0:
+				(ecc0, ecc1, ecc2) = ecc.CalcECC(orig_page_data)
+				page_data=orig_page_data+struct.pack('BBB',ecc0,ecc1,ecc2) + oob_postfix
+			else:
+				page_data=data[current_data_offset:current_data_offset+self.RawPageSize]
+				current_data_offset+=self.RawPageSize
+
+			if len(page_data)!=self.RawPageSize:
 				print 'Not enough source data'
 				break
-
-			self.writePage(page,page_data)
 			
-			bytes+=len(page_data)
+			length+=len(page_data)
 			current = time.time()
 
 			if self.UseAnsi:
-				sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n\033[A' % (page, self.PageCount, bytes/(current-start)))
+				sys.stdout.write('Writing page: %x/%lx (%d length/sec)\n\033[A' % (page, self.PageCount, length/(current-start)))
 			else:
-				sys.stdout.write('Writing page: %x/%lx (%d bytes/sec)\n' % (page, self.PageCount, bytes/(current-start)))
+				sys.stdout.write('Writing page: %x/%lx (%d length/sec)\n' % (page, self.PageCount, length/(current-start)))
+
+			self.writePage(page,page_data)
 
 			page+=1
 
-			current_data_offset+=self.RawPageSize
+			
 
 			if page>=end_page:
 				break

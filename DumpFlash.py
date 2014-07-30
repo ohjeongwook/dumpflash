@@ -18,9 +18,9 @@ parser.add_option("-B", action="store_true", dest="check_bad_blocks", default=Fa
 parser.add_option("-C", action="store_true", dest="check_ecc", default=False,
 				help="Check ECC")
 
-parser.add_option("-o", action="store_true", dest="add_oob", default=False,
+parser.add_option("-O", action="store_true", dest="add_oob", default=False,
 				help="Add OOB to the source")
-parser.add_option("-O", action="store_true", dest="remove_oob", default=False,
+parser.add_option("-o", action="store_true", dest="remove_oob", default=False,
 				help="Remove OOB from the source")
 
 parser.add_option("-u", action="store_true", dest="find_uboot_images", default=False,
@@ -43,7 +43,6 @@ parser.add_option("-f", "--filename", dest="filename", default='',
 parser.add_option("-t", type="int", default=0, dest="offset")
 parser.add_option("-p", type="int", nargs=2, dest="pages")
 parser.add_option("-b", type="int", nargs=2, dest="blocks")
-parser.add_option("-z", type="int", default=0, dest="size")
 	
 parser.add_option("-P", type="int", default=512, dest="page_size")
 parser.add_option("-E", type="int", default=16, dest="oob_size")
@@ -85,15 +84,24 @@ if options.information:
 	flash_util.io.DumpInfo()
 
 if options.read:
-	filename=args[0]
-	if options.seq:
-		flash_util.readSeqPages(start_page, end_page, options.remove_oob, filename)
+	output_filename=args[0]
+
+	if options.filename:
+		if options.add_oob:
+			print 'Add OOB to %s' % (options.filename)
+			flash_util.AddOOB(options.filename,output_filename)
+		elif options.remove_oob:
+			print 'Remove OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
+			flash_util.RemoveOOBByPage(output_filename,  start_page , end_page )
 	else:
-		flash_util.readPages(start_page, end_page, options.remove_oob, filename)
+		if options.seq:
+			flash_util.readSeqPages(start_page, end_page, options.remove_oob, output_filename)
+		else:
+			flash_util.readPages(start_page, end_page, options.remove_oob, output_filename)
 
 if options.write:
 	filename=args[0]
-	flash_util.writePages(filename, options.offset, start_page, end_page)
+	flash_util.io.writePages(filename, options.offset, start_page, end_page, options.add_oob)
 
 if options.erase:
 	flash_util.EraseBlock(options.blocks[0], options.blocks[1])
@@ -103,16 +111,6 @@ if options.check_bad_blocks:
 
 if options.check_ecc:
 	flash_util.CheckECC()
-
-if options.add_oob:
-	output_filename = args[0]
-	print 'Remove OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
-	flash_util.AddOOB(filename,output_filename,options.size)
-
-if options.remove_oob and len(arg)>0:
-	output_filename = args[0]
-	print 'Remove OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
-	flash_util.RemoveOOBByPage(output_filename,  start_page , end_page )
 
 if options.find_uboot_images:
 	flash_util.FindUBootImages()
