@@ -30,6 +30,8 @@ parser.add_option("-U", action="store_true", dest="dump_uboot_images", default=F
 
 parser.add_option("-j", action="store_true", dest="find_jffs2", default=False,
 				help="Find JFFS2 Image")
+parser.add_option("-J", action="store_true", dest="dump_jffs2", default=False,
+				help="Dump JFFS2 Image")
 
 parser.add_option("-s", action="store_true", dest="seq", default=False,
 				help="Set sequential row read mode - some NAND models supports")
@@ -38,7 +40,7 @@ parser.add_option("-S", action="store_true", dest="slow", default=False,
 parser.add_option("-f", "--filename", dest="filename", default='',
 				help="Use file instead of device for operations", metavar="FILENAME")
 
-parser.add_option("-s", type="int", default=0, dest="offset")
+parser.add_option("-t", type="int", default=0, dest="offset")
 parser.add_option("-p", type="int", nargs=2, dest="pages")
 parser.add_option("-b", type="int", nargs=2, dest="blocks")
 parser.add_option("-z", type="int", default=0, dest="size")
@@ -107,7 +109,7 @@ if options.dump_uboot_images:
 if options.find_jffs2:
 	flash_util.FindJFFS2()
 
-if options.DumpJFFS2:
+if options.dump_jffs2:
 	[minimum_pageno, maximum_pageno] = flash_util.FindJFFS2()
 	start_page=minimum_pageno
 	end_page=maximum_pageno
