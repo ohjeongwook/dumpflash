@@ -90,9 +90,13 @@ if options.read:
 		if options.add_oob:
 			print 'Add OOB to %s' % (options.filename)
 			flash_util.AddOOB(options.filename,output_filename)
-		elif options.remove_oob:
-			print 'Remove OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
-			flash_util.RemoveOOBByPage(output_filename,  start_page , end_page )
+		else:
+			if options.remove_oob:
+				print 'Removing OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
+			else:
+				print 'Copying OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
+
+			flash_util.CopyPages(output_filename,  start_page , end_page, options.remove_oob )
 	else:
 		if options.seq:
 			flash_util.readSeqPages(start_page, end_page, options.remove_oob, output_filename)
