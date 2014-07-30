@@ -108,6 +108,9 @@ class FlashUtil:
 
 			block += 1
 
+			if block>self.io.BlockCount:
+				break
+
 		print "Checked %d blocks and found %d errors" % (block,error_count)
 
 	def readPages(self,start_page=-1,end_page=-1,remove_oob=False, filename='', append=False):
@@ -225,7 +228,7 @@ class FlashUtil:
 		fd.close()
 		wfd.close()
 
-	def RemoveOOBByPage(self, output_filename, start_page=0, end_page=-1, preserve_oob = False):
+	def CopyPages(self, output_filename, start_page=0, end_page=-1, remove_oob = True):
 		if start_page==-1:
 			start_page=0
 
@@ -234,9 +237,9 @@ class FlashUtil:
 		else:
 			end=end_page * self.io.RawPageSize
 
-		return self.RemoveOOB(output_filename, start_page * self.io.RawPageSize, end, preserve_oob)
+		return self.CopyPagesByOffset(output_filename, start_page * self.io.RawPageSize, end, remove_oob)
 
-	def RemoveOOB(self, output_filename, start=0, end=-1, preserve_oob = False):
+	def CopyPagesByOffset(self, output_filename, start=0, end=-1, remove_oob = True):
 		if start==-1:
 			start=0
 
@@ -270,10 +273,10 @@ class FlashUtil:
 					current_end_page=end_page+1
 
 				for page in range(current_start_page,current_end_page,1):
-					data=self.io.readPage(block * self.io.PagePerBlock)
+					data=self.io.readPage(block * self.io.PagePerBlock + page)
 
-					if preserve_oob:
-						write_size=self.RawPageSize
+					if not remove_oob:
+						write_size=self.io.RawPageSize
 					else:
 						write_size=self.io.PageSize
 

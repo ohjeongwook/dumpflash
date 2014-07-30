@@ -127,7 +127,6 @@ class NandIO:
 
 	WriteProtect=True
 	CheckBadBlock=True
-	CheckBadBlocksForWriting=False
 	RemoveOOB=False
 	UseSequentialMode=False
 
@@ -313,14 +312,17 @@ class NandIO:
 
 	def CheckBadBlocks(self):
 		bad_blocks={}
+		block=0
 		for pageno in range(0,self.PageCount,self.PagePerBlock):
 			for pageoff in range(0,2,1):
 				oob=self.readOOB(pageno+pageoff)
 
 				if oob[5]!='\xff':
-					print 'Bad block found:', pageno
+					print 'Bad block found:', block
 					bad_blocks[pageno]=1
 					break
+			block+=1
+		print 'Checked %d blocks' % block
 		return bad_blocks
 
 	def readOOB(self,pageno):
@@ -410,9 +412,9 @@ class NandIO:
 
 			if i==0 or i==1:
 				if page_data[self.PageSize+5]!=0xff:
-					print 'Skipping bad block %d (%.2x)' % (pageno+i, page_data[self.PageSize+5])
-					pprint.pprint(page_data[self.PageSize:])
+					print '\nSkipping bad block %d' % (pageno/self.PagePerBlock)
 					bad_block = True
+
 			if remove_oob:
 				page += page_data[0:self.PageSize]
 			else:
@@ -511,7 +513,7 @@ class NandIO:
 			nand_tool.writePage(pageno,data[i:i+self.RawPageSize])
 			page+=1
 
-	def writePages(self,filename,offset=0,start_page=-1,end_page=-1,add_oob=False,jffs2=False):
+	def writePages(self,filename,offset=0,start_page=-1,end_page=-1,add_oob=False,jffs2=False,check_bad_blocks_before_writing=False):
 		fd=open(filename,'rb')
 		fd.seek(offset)
 		data=fd.read()
@@ -522,7 +524,8 @@ class NandIO:
 		if end_page==-1:
 			end_page=self.PageCount-1
 
-		if self.CheckBadBlocksForWriting:
+		if check_bad_blocks_before_writing:
+			print 'Checking bad blocks before writing...'
 			bad_blocks = self.CheckBadBlocks()
 
 		length=0
@@ -535,15 +538,32 @@ class NandIO:
 		while current_data_offset<len(data) and current_block<self.BlockCount:
 			oob_postfix='\xFF' * 13
 			if page%self.PagePerBlock == 0:
-				current_block+=1
-				if self.CheckBadBlocksForWriting and bad_blocks.has_key(page):
-					print 'Skipping bad block at ', page
-					page+=selpage_dataf.PagePerBlock
+				if check_bad_blocks_before_writing and bad_blocks.has_key(page):
+					print '\nSkipping bad block at ', current_block
+					page+=self.PagePerBlock
+					current_block+=1
 					continue
+				else:
+					bad_block_found=False
+					for pageoff in range(0,2,1):
+						oob=self.readOOB(page+pageoff)
+
+						if oob[5]!='\xff':
+							bad_block_found=True
+							break
+
+					if bad_block_found:
+						print '\nSkipping bad block at ', current_block
+						page+=self.PagePerBlock
+						current_block+=1
+						continue
+				
 				self.eraseBlockByPage(page)
 				
 				if jffs2:
 					oob_postfix="\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
+
+				current_block+=1
 			
 			if add_oob:
 				orig_page_data=data[current_data_offset:current_data_offset+self.PageSize]
@@ -563,9 +583,9 @@ class NandIO:
 			current = time.time()
 
 			if self.UseAnsi:
-				sys.stdout.write('Writing page: %x/%lx (%d length/sec)\n\033[A' % (page, self.PageCount, length/(current-start)))
+				sys.stdout.write('Writing page: %d/%d (%d length/sec)\n\033[A' % (page, self.PageCount, length/(current-start)))
 			else:
-				sys.stdout.write('Writing page: %x/%lx (%d length/sec)\n' % (page, self.PageCount, length/(current-start)))
+				sys.stdout.write('Writing page: %d/%d (%d length/sec)\n' % (page, self.PageCount, length/(current-start)))
 
 			self.writePage(page,page_data)
 
