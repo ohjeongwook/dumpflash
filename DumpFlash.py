@@ -108,7 +108,12 @@ if options.write:
 	flash_util.io.writePages(filename, options.offset, start_page, end_page, options.add_oob)
 
 if options.erase:
-	flash_util.EraseBlock(options.blocks[0], options.blocks[1])
+	if options.blocks!=None:
+		start=options.blocks[0]
+		end=options.blocks[1]
+		flash_util.io.EraseBlock(start,end)
+	else:
+		flash_util.io.Erase()
 
 if options.check_bad_blocks:
 	flash_util.CheckBadBlocks()
