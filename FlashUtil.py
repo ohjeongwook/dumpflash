@@ -114,7 +114,7 @@ class FlashUtil:
 
 		print "Checked %d blocks and found %d errors" % (block,error_count)
 
-	def readPages(self,start_page=-1,end_page=-1,remove_oob=False, filename='', append=False):
+	def readPages(self,start_page=-1,end_page=-1,remove_oob=False, filename='', append=False, maximum=0):
 		if filename:
 			if append:
 				fd=open(filename,'ab')
@@ -134,7 +134,13 @@ class FlashUtil:
 			data=self.io.readPage(page,remove_oob)
 
 			if filename:
-				fd.write(data)
+				if maximum!=0:
+					if length<maximum:
+						fd.write(data[0:maximum-length])
+					else:
+						break
+				else:
+					fd.write(data)
 			else:
 				whole_data+=data
 			
@@ -151,9 +157,11 @@ class FlashUtil:
 		if filename:
 			fd.close()
 
+		if maximum!=0:
+			return whole_data[0:maximum]
 		return whole_data
 
-	def readSeqPages(self, start_page=-1, end_page=-1, remove_oob=False, filename='', append=False):
+	def readSeqPages(self, start_page=-1, end_page=-1, remove_oob=False, filename='', append=False, maximum = 0):
 		if filename:
 			if append:
 				fd=open(filename,'ab')
@@ -173,7 +181,13 @@ class FlashUtil:
 			data=self.io.readSeq(page, remove_oob)
 
 			if filename:
-				fd.write(data)
+				if maximum!=0:
+					if length<maximum:
+						fd.write(data[0:maximum-length])
+					else:
+						break
+				else:
+					fd.write(data)
 			else:
 				whole_data+=data
 
@@ -183,13 +197,15 @@ class FlashUtil:
 			if self.DumpProgress:
 				block=page/self.io.PagePerBlock
 				if self.UseAnsi:
-					sys.stdout.write('Reading page: %d/%ld (block: 0x%x) (%d bytes/sec)\n\033[A' % (page, end_page, block, length/(current-start)))
+					sys.stdout.write('Reading page: %d/%ld block: 0x%x %d bytes/sec\n\033[A' % (page, end_page, block, length/(current-start)))
 				else:
-					sys.stdout.write('Reading page: %d/%ld (block: 0x%x) (%d bytes/sec)\n' % (page, end_page, block, length/(current-start)))
+					sys.stdout.write('Reading page: %d/%ld block: 0x%x%d bytes/sec\n' % (page, end_page, block, length/(current-start)))
 
 		if filename:
 			fd.close()
 
+		if maximum!=0:
+			return whole_data[0:maximum]
 		return whole_data
 
 	def AddOOB(self,filename, output_filename, jffs2=False):
@@ -330,6 +346,8 @@ class FlashUtil:
 
 		self.DumpProgress=False
 		data=''
+		append=False
+		maximum=length
 		for block in blocks:
 			start_page=block * self.io.PagePerBlock
 			end_page=(block+1) * self.io.PagePerBlock
@@ -337,12 +355,17 @@ class FlashUtil:
 				start_page+=start_block_page
 
 			if self.UseSequentialMode:
-				data+=self.readSeqPages(start_page, end_page, True, filename, append=True)
+				data+=self.readSeqPages(start_page, end_page, True, filename, append=append, maximum = maximum)
 			else:
-				data+=self.readPages(start_page,end_page,True, filename, append=True)
+				data+=self.readPages(start_page,end_page,True, filename, append=append, maximum = maximum)
+
+			maximum-=self.io.PagePerBlock*self.io.PageSize
 
 			if len(data)>length:
 				break
+
+			append=True
+
 		self.DumpProgress=True
 		return data[0:length]
 
