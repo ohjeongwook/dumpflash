@@ -447,7 +447,7 @@ class NandIO:
 	def writePage(self,pageno,data):
 		err=0
 		self.WriteProtect=False
-
+		
 		if self.Options&self.LP_Options:
 			self.sendCmd(self.NAND_CMD_SEQIN)
 			self.waitReady()
@@ -468,7 +468,6 @@ class NandIO:
 				err=self.Status()
 				if err&self.NAND_STATUS_FAIL:
 					print 'Failed to write 1st half of ', pageno, err
-					#return err
 					continue
 				break
 
@@ -483,7 +482,6 @@ class NandIO:
 				err=self.Status()
 				if err&self.NAND_STATUS_FAIL:
 					print 'Failed to write 2nd half of ', pageno, err
-					#return err
 					continue
 				break
 
@@ -498,7 +496,6 @@ class NandIO:
 				err=self.Status()
 				if err&self.NAND_STATUS_FAIL:
 					print 'Failed to write OOB of ', pageno, err
-					#return err
 					continue
 				break
 
@@ -506,10 +503,9 @@ class NandIO:
 		return err
 
 	def writeBlock(self,block_data):
-		nand_tool.eraseBlockByPage(0)
+		nand_tool.eraseBlockByPage(0) #need to fix
 		page=0
 		for i in range(0,len(data),self.RawPageSize):
-			print 'Writing page:', page
 			nand_tool.writePage(pageno,data[i:i+self.RawPageSize])
 			page+=1
 
@@ -528,20 +524,22 @@ class NandIO:
 			print 'Checking bad blocks before writing...'
 			bad_blocks = self.CheckBadBlocks()
 
-		length=0
+
 		start = time.time()
-		page=start_page
-		block=0
-		current_data_offset=0
-		current_block=0
 		ecc=ECC()
-		while current_data_offset<len(data) and current_block<self.BlockCount:
+
+		page=start_page
+		block=page/self.PagePerBlock
+		current_data_offset=0
+		length=0
+				
+		while page<end_page and current_data_offset<len(data) and block<self.BlockCount:
 			oob_postfix='\xFF' * 13
 			if page%self.PagePerBlock == 0:
 				if check_bad_blocks_before_writing and bad_blocks.has_key(page):
-					print '\nSkipping bad block at ', current_block
+					print '\nSkipping bad block at ', block
 					page+=self.PagePerBlock
-					current_block+=1
+					block+=1
 					continue
 				else:
 					bad_block_found=False
@@ -553,22 +551,21 @@ class NandIO:
 							break
 
 					if bad_block_found:
-						print '\nSkipping bad block at ', current_block
+						print '\nSkipping bad block at ', block
 						page+=self.PagePerBlock
-						current_block+=1
+						block+=1
 						continue
-				
-				self.eraseBlockByPage(page)
 				
 				if jffs2:
 					oob_postfix="\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
 
-				current_block+=1
-			
+				self.eraseBlockByPage(page)
+
 			if add_oob:
 				orig_page_data=data[current_data_offset:current_data_offset+self.PageSize]
 				current_data_offset+=self.PageSize
 
+				import copy
 				(ecc0, ecc1, ecc2) = ecc.CalcECC(orig_page_data)
 				page_data=orig_page_data+struct.pack('BBB',ecc0,ecc1,ecc2) + oob_postfix
 			else:
@@ -583,25 +580,23 @@ class NandIO:
 			current = time.time()
 
 			if self.UseAnsi:
-				sys.stdout.write('Writing page: %d/%d (%d length/sec)\n\033[A' % (page, self.PageCount, length/(current-start)))
+				sys.stdout.write('Writing page: %d/%d block: 0x%x %d bytes/sec\n\033[A' % (page, end_page, block, length/(current-start)))
 			else:
-				sys.stdout.write('Writing page: %d/%d (%d length/sec)\n' % (page, self.PageCount, length/(current-start)))
+				sys.stdout.write('Writing page: %d/%d block: 0x%x %d bytes/sec\n' % (page, end_page, block, length/(current-start)))
 
 			self.writePage(page,page_data)
 
+			if page%self.PagePerBlock == 0:
+				block=page/self.PagePerBlock
 			page+=1
-
-			
-
-			if page>=end_page:
-				break
 
 		fd.close()
 
 	def Erase(self):
-		current_block=0
-		while current_block<self.BlockCount:
-			self.eraseBlockByPage(curret_block * self.PagePerBlock)
+		block=0
+		while block<self.BlockCount:
+			self.eraseBlockByPage(block * self.PagePerBlock)
+			block+=1
 
 	def EraseBlock(self,start_block, end_block):
 		for block in range(start_block, end_block+1, 1):

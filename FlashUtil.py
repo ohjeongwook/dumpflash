@@ -3,6 +3,7 @@ from FlashFile import *
 from FlashDevice import *
 from DumpUBoot import *
 from ECC import *
+import os
 
 class FlashUtil:
 	def __init__(self, filename='', page_size=0x200, oob_size=0x10, page_per_block=0x20,slow=False):
@@ -141,10 +142,11 @@ class FlashUtil:
 			current = time.time()
 
 			if self.DumpProgress:
+				block=page/self.io.PagePerBlock
 				if self.UseAnsi:
-					sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n\033[A' % (page, end_page, length/(current-start)))
+					sys.stdout.write('Reading page: %d/%ld block: 0x%x %d bytes/sec)\n\033[A' % (page, end_page, block, length/(current-start)))
 				else:
-					sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
+					sys.stdout.write('Reading page: %d/%ld block: 0x%x %d bytes/sec)\n' % (page, end_page, block, length/(current-start)))
 		
 		if filename:
 			fd.close()
@@ -162,12 +164,12 @@ class FlashUtil:
 			start_page=0
 
 		if end_page==-1:
-			end_page=self.io.PageCount-1
+			end_page=self.io.PageCount+1
 
 		whole_data=''
 		length=0
 		start = time.time()
-		for page in range(start_page,end_page+1,self.io.PagePerBlock):
+		for page in range(start_page,end_page,self.io.PagePerBlock):
 			data=self.io.readSeq(page, remove_oob)
 
 			if filename:
@@ -179,10 +181,11 @@ class FlashUtil:
 			current = time.time()
 
 			if self.DumpProgress:
+				block=page/self.io.PagePerBlock
 				if self.UseAnsi:
-					sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n\033[A' % (page, end_page, length/(current-start)))
+					sys.stdout.write('Reading page: %d/%ld (block: 0x%x) (%d bytes/sec)\n\033[A' % (page, end_page, block, length/(current-start)))
 				else:
-					sys.stdout.write('Reading page: %d/%ld (%d bytes/sec)\n' % (page, end_page, length/(current-start)))
+					sys.stdout.write('Reading page: %d/%ld (block: 0x%x) (%d bytes/sec)\n' % (page, end_page, block, length/(current-start)))
 
 		if filename:
 			fd.close()
@@ -363,6 +366,9 @@ class FlashUtil:
 				uimage=uImage()
 				uimage.ParseHeader(self.readData(block*self.io.PagePerBlock, 64))
 				uimage.DumpHeader()
+				block_size=uimage.size / self.io.BlockSize
+				print "Block count:", block_size
+				print "0x%x - 0x%x" % (block, block+block_size)
 				print ''
 
 			block += 1
@@ -383,6 +389,10 @@ class FlashUtil:
 				output_filename='U-Boot-%.2d.dmp' % seq
 				seq+=1
 
+				try:
+					os.unlink(output_filename)
+				except:
+					pass
 				self.readData(pageno, uimage.size, output_filename)
 				print ''
 

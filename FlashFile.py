@@ -21,6 +21,7 @@ class FlashFile:
 		self.PagePerBlock=page_per_block
 		self.BlockSize = (self.RawPageSize+self.OOBSize) * self.PagePerBlock
 		self.PageCount=(self.FileSize)/self.PageSize
+		self.BlockCount = self.PageCount/self.PagePerBlock
 
 		print 'PageSize: 0x%x' % self.PageSize
 		print 'OOBSize: 0x%x' % self.OOBSize
