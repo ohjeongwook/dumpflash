@@ -15,7 +15,7 @@ parser.add_option("-e", action="store_true", dest="erase", default=False,
 				help="Erase")
 parser.add_option("-B", action="store_true", dest="check_bad_blocks", default=False,
 				help="Check bad blocks")
-parser.add_option("-C", action="store_true", dest="check_ecc", default=False,
+parser.add_option("-c", action="store_true", dest="check_ecc", default=False,
 				help="Check ECC")
 
 parser.add_option("-O", action="store_true", dest="add_oob", default=False,
