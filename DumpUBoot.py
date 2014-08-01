@@ -1,6 +1,8 @@
 import struct
+import zlib
 
 class uImage:
+	HEADER_PACK_STR=">LLLLLLLBBBB32s"
 	MAGIC=0x27051956
 
 	IH_OS_INVALID=0
@@ -235,7 +237,7 @@ class uImage:
 		self.ParseHeader(header)
 
 	def ParseHeader(self,header):
-		(self.magic,self.hcrc,self.time,self.size,self.load,self.ep,self.dcrc,self.os,self.arch,self.type,self.comp,self.name)=struct.unpack(">LLLLLLLBBBB32s", header)
+		(self.magic,self.hcrc,self.time,self.size,self.load,self.ep,self.dcrc,self.os,self.arch,self.type,self.comp,self.name)=struct.unpack(self.HEADER_PACK_STR, header)
 
 	def DumpHeader(self):
 		print 'Magic:\t0x%x'% (self.magic)
@@ -250,6 +252,53 @@ class uImage:
 		print 'Type:\t0x%x (%s)'% (self.type, self.GetTypeString(self.type))
 		print 'Comp:\t0x%x (%s)'% (self.comp, self.GetCompString(self.comp))
 		print 'Name:\t%s'% (self.name)
+
+	def CheckCRC(self):
+		fd=open(self.filename,'rb')
+		header=fd.read(0x40)
+		data=fd.read(self.size)
+		fd.close()
+
+		print 'Read %08X bytes out of %08X' % (len(data), self.size)
+		new_header=header[0:4] + struct.pack("L",0) + header[8:]
+		print '%08X' % (zlib.crc32(new_header) & 0xFFFFFFFF)
+		print '%08X' % (zlib.crc32(data) & 0xFFFFFFFF)
+
+	def FixHeader(self):
+		fd=open(self.filename,'rb')
+		header=fd.read(0x40)
+		data=fd.read(self.size)
+		fd.close()
+
+		print 'New length: 0x%08x / Original length: 0x%08x' % (len(data), self.size)
+
+		self.dcrc=zlib.crc32(data)& 0xFFFFFFFF
+		print 'New DCRC: %08x' % self.dcrc
+
+		new_header=header[0:4] + struct.pack("L",0) + header[8:]
+		self.size=len(data)
+		self.hcrc=0
+		header=struct.pack(self.HEADER_PACK_STR, self.magic,self.hcrc,self.time,self.size,self.load,self.ep,self.dcrc,self.os,self.arch,self.type,self.comp,self.name)
+
+		self.hcrc=zlib.crc32(header)& 0xFFFFFFFF
+		print 'New HCRC: %08X' % self.hcrc
+
+		header=struct.pack(self.HEADER_PACK_STR, self.magic,self.hcrc,self.time,self.size,self.load,self.ep,self.dcrc,self.os,self.arch,self.type,self.comp,self.name)
+		
+		fd=open(self.filename,'rb+')
+		fd.write(header)
+		fd.close()
+
+	def CheckCRC(self):
+		fd=open(self.filename,'rb')
+		header=fd.read(0x40)
+		data=fd.read(self.size)
+		fd.close()
+
+		print 'Read 0x%08x bytes out of 0x%08x' % (len(data), self.size)
+		new_header=header[0:4] + struct.pack("L",0) + header[8:]
+		print 'HCRC: 0x%08x' % (zlib.crc32(new_header) & 0xFFFFFFFF)
+		print 'DCRC: 0x%08x' % (zlib.crc32(data) & 0xFFFFFFFF)
 
 	def Extract(self):
 		seq=0
@@ -294,9 +343,27 @@ class uImage:
 
 if __name__=='__main__':
 	import sys
-	filename=sys.argv[1]
+
+	from optparse import OptionParser
+	parser = OptionParser()
+
+	parser.add_option("-f", action="store_true", dest="fix_header", default=False)
+	parser.add_option("-c", action="store_true", dest="check_crc", default=False)
+	parser.add_option("-e", action="store_true", dest="extract", default=False)
+
+	(options, args) = parser.parse_args()
+	filename=args[0]
 
 	uimage=uImage()
 	uimage.ParseFile(filename)
-	uimage.Extract()
+	uimage.DumpHeader()
+
+	if options.fix_header:
+		uimage.FixHeader()
+
+	elif options.check_crc:
+		uimage.CheckCRC()
+
+	elif options.extract:
+		uimage.Extract()
 
