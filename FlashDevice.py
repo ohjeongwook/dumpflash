@@ -296,6 +296,7 @@ class NandIO:
 
 		self.RawPageSize=self.PageSize+self.OOBSize
 		self.BlockSize=self.PagePerBlock*self.RawPageSize
+		self.RawBlockSize=self.PagePerBlock*self.PageSize
 
 	def DumpInfo(self):
 		print 'Name:\t\t',self.Name
@@ -564,25 +565,27 @@ class NandIO:
 			if add_oob:
 				orig_page_data=data[current_data_offset:current_data_offset+self.PageSize]
 				current_data_offset+=self.PageSize
-
+				length+=len(orig_page_data)
+				orig_page_data+=(self.PageSize-len(orig_page_data))*'\x00'
 				import copy
 				(ecc0, ecc1, ecc2) = ecc.CalcECC(orig_page_data)
 				page_data=orig_page_data+struct.pack('BBB',ecc0,ecc1,ecc2) + oob_postfix
 			else:
 				page_data=data[current_data_offset:current_data_offset+self.RawPageSize]
 				current_data_offset+=self.RawPageSize
+				length+=len(page_data)
 
 			if len(page_data)!=self.RawPageSize:
 				print 'Not enough source data'
 				break
 			
-			length+=len(page_data)
 			current = time.time()
 
+			progress=(page-start_page) * 100 / (end_page-start_page) 
 			if self.UseAnsi:
-				sys.stdout.write('Writing page: %d/%d block: 0x%x %d bytes/sec\n\033[A' % (page, end_page, block, length/(current-start)))
+				sys.stdout.write('Writing %d%% page: %d/%d block: 0x%x speed: %d bytes/sec\n\033[A' % (progress, page, end_page, block, length/(current-start)))
 			else:
-				sys.stdout.write('Writing page: %d/%d block: 0x%x %d bytes/sec\n' % (page, end_page, block, length/(current-start)))
+				sys.stdout.write('Writing %d%% page: %d%% %d/%d block: 0x%x speed: %d bytes/sec\n' % (progress, page, end_page, block, length/(current-start)))
 
 			self.writePage(page,page_data)
 
@@ -591,6 +594,8 @@ class NandIO:
 			page+=1
 
 		fd.close()
+
+		print '\nWritten %x bytes / %x byte' % (length, len(data))
 
 	def Erase(self):
 		block=0

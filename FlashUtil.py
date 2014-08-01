@@ -197,9 +197,9 @@ class FlashUtil:
 			if self.DumpProgress:
 				block=page/self.io.PagePerBlock
 				if self.UseAnsi:
-					sys.stdout.write('Reading page: %d/%ld block: 0x%x %d bytes/sec\n\033[A' % (page, end_page, block, length/(current-start)))
+					sys.stdout.write('Reading page: %d/%ld block: 0x%x speed: %d bytes/sec\n\033[A' % (page, end_page, block, length/(current-start)))
 				else:
-					sys.stdout.write('Reading page: %d/%ld block: 0x%x%d bytes/sec\n' % (page, end_page, block, length/(current-start)))
+					sys.stdout.write('Reading page: %d/%ld block: 0x%x speed: %d bytes/sec\n' % (page, end_page, block, length/(current-start)))
 
 		if filename:
 			fd.close()
@@ -237,7 +237,7 @@ class FlashUtil:
 		#Write blank pages
 		"""
 		while size>current_output_size:
-			if current_output_size% self.BlockSize==0:
+			if current_output_size% self.RawBlockSize==0:
 				wfd.write("\xff"*0x200+ "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00")
 			else:
 				wfd.write("\xff"*0x210)
@@ -263,7 +263,7 @@ class FlashUtil:
 			start=0
 
 		if end==-1:
-			end=self.BlockSize*self.RawPageSize*self.PagePerBlock
+			end=self.RawBlockSize*self.BlockCount
 
 		wfd=open(output_filename,"wb")
 
@@ -391,7 +391,7 @@ class FlashUtil:
 				uimage.DumpHeader()
 				block_size=uimage.size / self.io.BlockSize
 				print "Block count:", block_size
-				print "0x%x - 0x%x" % (block, block+block_size)
+				print "0x%x - 0x%x (%X)" % (block, block+block_size, self.io.BlockSize)
 				print ''
 
 			block += 1
@@ -447,7 +447,7 @@ class FlashUtil:
 		ret = self.IsBadBlock(block) 
 		if ret == self.CLEAN_BLOCK:
 			page=0
-			block_offset = (block * self.BlockSize ) + (page * (self.PageSize + self.OOBSize))
+			block_offset = (block * self.RawBlockSize ) + (page * self.RawPageSize)
 			self.fd.seek( block_offset + self.PageSize)
 			oob = self.fd.read(16)
 	

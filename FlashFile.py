@@ -19,7 +19,8 @@ class FlashFile:
 		self.OOBSize=oob_size
 		self.RawPageSize=self.PageSize+self.OOBSize
 		self.PagePerBlock=page_per_block
-		self.BlockSize = (self.RawPageSize+self.OOBSize) * self.PagePerBlock
+		self.BlockSize=self.PageSize * self.PagePerBlock
+		self.RawBlockSize=self.RawPageSize * self.PagePerBlock
 		self.PageCount=(self.FileSize)/self.PageSize
 		self.BlockCount = self.PageCount/self.PagePerBlock
 
@@ -58,4 +59,4 @@ class FlashFile:
 		return self.fd.read(self.OOBSize)
 
 	def GetBlockOffset(self,block):
-		return block * self.BlockSize
+		return block * self.RawBlockSize
