@@ -150,9 +150,9 @@ class FlashUtil:
 			if self.DumpProgress:
 				block=page/self.io.PagePerBlock
 				if self.UseAnsi:
-					sys.stdout.write('Reading page: %d/%ld block: 0x%x %d bytes/sec)\n\033[A' % (page, end_page, block, length/(current-start)))
+					sys.stdout.write('Reading page: %d/%ld block: 0x%x speed: %d bytes/sec)\n\033[A' % (page, end_page, block, length/(current-start)))
 				else:
-					sys.stdout.write('Reading page: %d/%ld block: 0x%x %d bytes/sec)\n' % (page, end_page, block, length/(current-start)))
+					sys.stdout.write('Reading page: %d/%ld block: 0x%x speed: %d bytes/sec)\n' % (page, end_page, block, length/(current-start)))
 		
 		if filename:
 			fd.close()
@@ -416,7 +416,7 @@ class FlashUtil:
 					os.unlink(output_filename)
 				except:
 					pass
-				self.readData(pageno, uimage.size, output_filename)
+				self.readData(pageno, 0x40+uimage.size, output_filename)
 				print ''
 
 				uimage=uImage()
