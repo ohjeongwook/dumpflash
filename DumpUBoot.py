@@ -339,7 +339,34 @@ class uImage:
 				wfd.write(data)
 				wfd.close()
 
-		
+	def Merge(self, header_file, files, output_filename):
+		fd=open(header_file,'rb')
+		header=fd.read(0x40)
+		fd.close()
+
+		ofd=open(output_filename,'wb')
+		ofd.write(header)
+		ofd.write('\x00' * (len(files)+1)*4)
+
+		dcrc=0
+		lengths=[]
+		for file in files:
+			fd=open(file,'rb')
+			data=fd.read()
+			fd.close()
+
+			ofd.write(data)
+
+			lengths.append(len(data))
+			dcrc=zlib.crc32(data,dcrc)
+
+		ofd.seek(0x40)
+		for length in lengths:			
+			ofd.write(struct.pack(">L", length))
+		ofd.close()
+
+		self.ParseFile(output_filename)
+		self.FixHeader()
 
 if __name__=='__main__':
 	import sys
@@ -350,20 +377,32 @@ if __name__=='__main__':
 	parser.add_option("-f", action="store_true", dest="fix_header", default=False)
 	parser.add_option("-c", action="store_true", dest="check_crc", default=False)
 	parser.add_option("-e", action="store_true", dest="extract", default=False)
+	parser.add_option("-m", action="store_true", dest="merge", default=False)
+	parser.add_option("-o", "--output_filename", dest="output_filename", default='',
+				help="Set output_filename filename", metavar="output_filename")
+	parser.add_option("-H", "--header_file", dest="header_file", default='',
+				help="Set header filename", metavar="header")
 
 	(options, args) = parser.parse_args()
 	filename=args[0]
 
 	uimage=uImage()
-	uimage.ParseFile(filename)
-	uimage.DumpHeader()
 
 	if options.fix_header:
+		uimage.ParseFile(filename)
+		uimage.DumpHeader()
 		uimage.FixHeader()
 
 	elif options.check_crc:
+		uimage.ParseFile(filename)
+		uimage.DumpHeader()
 		uimage.CheckCRC()
 
 	elif options.extract:
+		uimage.ParseFile(filename)
+		uimage.DumpHeader()
 		uimage.Extract()
+
+	elif options.merge:
+		uimage.Merge(options.header_file, args, options.output_filename)
 
