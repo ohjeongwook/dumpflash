@@ -314,16 +314,29 @@ class NandIO:
 	def CheckBadBlocks(self):
 		bad_blocks={}
 		block=0
-		for pageno in range(0,self.PageCount,self.PagePerBlock):
+		start_page=0
+		end_page=self.PageCount
+		end_block=end_page/self.PagePerBlock
+
+		if end_page%self.PagePerBlock>0:
+			end_block+=1
+
+		for page in range(start_page,end_page,self.PagePerBlock):
+			progress=(page-start_page) * 100 / (end_page-start_page) 
+			if self.UseAnsi:
+				sys.stdout.write('Checking bad blocks %d%% page: %d/%d block: %d/%d\n\033[A' % (progress, page, end_page, block, end_block))
+			else:
+				sys.stdout.write('Checking bad blocks %d%% page: %d%% %d/%d block: %d/%d\n' % (progress, page, end_page, block, end_block))
+
 			for pageoff in range(0,2,1):
-				oob=self.readOOB(pageno+pageoff)
+				oob=self.readOOB(page+pageoff)
 
 				if oob[5]!='\xff':
 					print 'Bad block found:', block
-					bad_blocks[pageno]=1
+					bad_blocks[page]=1
 					break
 			block+=1
-		print 'Checked %d blocks' % block
+		print 'Checked %d blocks and found %d bad blocks' % ( block, len(bad_blocks))
 		return bad_blocks
 
 	def readOOB(self,pageno):
@@ -521,6 +534,11 @@ class NandIO:
 		if end_page==-1:
 			end_page=self.PageCount-1
 
+		end_block=end_page/self.PagePerBlock
+
+		if end_page%self.PagePerBlock>0:
+			end_block+=1
+
 		if check_bad_blocks_before_writing:
 			print 'Checking bad blocks before writing...'
 			bad_blocks = self.CheckBadBlocks()
@@ -581,11 +599,14 @@ class NandIO:
 			
 			current = time.time()
 
-			progress=(page-start_page) * 100 / (end_page-start_page) 
-			if self.UseAnsi:
-				sys.stdout.write('Writing %d%% page: %d/%d block: 0x%x speed: %d bytes/sec\n\033[A' % (progress, page, end_page, block, length/(current-start)))
-			else:
-				sys.stdout.write('Writing %d%% page: %d%% %d/%d block: 0x%x speed: %d bytes/sec\n' % (progress, page, end_page, block, length/(current-start)))
+			progress=(page-start_page) * 100 / (end_page-start_page)
+			lapsed_time=current-start
+
+			if lapsed_time>0:
+				if self.UseAnsi:
+					sys.stdout.write('Writing %d%% page: %d/%d block: %d/%d speed: %d bytes/s\n\033[A' % (progress, page, end_page, block, end_block, length/lapsed_time))
+				else:
+					sys.stdout.write('Writing %d%% page: %d%% %d/%d block: %d/%d speed: %d bytes/s\n' % (progress, page, end_page, block, end_block, length/lapsed_time))
 
 			self.writePage(page,page_data)
 
