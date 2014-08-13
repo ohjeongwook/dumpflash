@@ -98,10 +98,7 @@ if options.read:
 
 			flash_util.CopyPages(output_filename,  start_page , end_page, options.remove_oob )
 	else:
-		if options.seq:
-			flash_util.readSeqPages(start_page, end_page, options.remove_oob, output_filename)
-		else:
-			flash_util.readPages(start_page, end_page, options.remove_oob, output_filename)
+		flash_util.readPages(start_page, end_page, options.remove_oob, output_filename, seq=options.seq)
 
 if options.write:
 	filename=args[0]
@@ -131,6 +128,4 @@ if options.find_jffs2:
 	flash_util.FindJFFS2()
 
 if options.dump_jffs2:
-	[minimum_pageno, maximum_pageno] = flash_util.FindJFFS2()
-	start_page=minimum_pageno
-	end_page=maximum_pageno
+	flash_util.DumpJFFS2()
