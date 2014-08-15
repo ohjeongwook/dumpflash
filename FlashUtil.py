@@ -136,7 +136,7 @@ class FlashUtil:
 
 	def readPages(self,start_page=-1,end_page=-1,remove_oob=False, filename='', append=False, maximum=0, seq=False):
 		if seq:
-			return self.readSeqPages(start_page, end_page, True, filename, append=append, maximum = maximum)
+			return self.readSeqPages(start_page, end_page, remove_oob, filename, append=append, maximum = maximum)
 
 		if filename:
 			if append:
