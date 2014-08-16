@@ -306,17 +306,18 @@ class FlashUtil:
 
 		wfd=open(output_filename,"wb")
 
-		start_block = start / self.io.BlockSize
-		start_block_offset = start % self.io.BlockSize
+		start_block = start / self.io.RawBlockSize
+		start_block_offset = start % self.io.RawBlockSize
 		start_page = start_block_offset / self.io.RawPageSize
 		start_page_offset = start_block_offset % self.io.RawPageSize
 
-		end_block = end / self.io.BlockSize
-		end_block_offset = end % self.io.BlockSize
+		end_block = end / self.io.RawBlockSize
+		end_block_offset = end % self.io.RawBlockSize
 		end_page = end_block_offset / self.io.RawPageSize
 		end_page_offset = end_block_offset % self.io.RawPageSize
 
-		print 'Dumping blocks (Block: 0x%x Page: 0x%x ~  Block: 0x%x Page: 0x%x)' % (start_block, start_block_offset, end_block, end_block_offset)
+		print 'Dumping blocks (Block: 0x%x Offset: 0x%x ~  Block: 0x%x Offset: 0x%x)' % (start_block, start_block_offset, end_block, end_block_offset)
+		print '0x%x - 0x%x' % (start,end)
 
 		for block in range(start_block,end_block+1,1):
 			ret=self.IsBadBlock(block)
@@ -457,28 +458,6 @@ class FlashUtil:
 				uimage.ParseFile(output_filename)
 				uimage.Extract()
 
-	def FindJFFS2(self):
-		bad_blocks={}
-		minimum_pageno=-1
-		maximum_pageno=-1
-		last_jffs2_page=-1
-		for pageno in range(0,self.io.PageCount,self.io.PagePerBlock):
-			oob=self.io.readOOB(pageno)
-
-			if oob[8:]=='\x85\x19\x03\x20\x08\x00\x00\x00':
-				print 'JFFS2 block found:', pageno, pageno-last_jffs2_page
-				last_jffs2_page=pageno
-
-				if minimum_pageno == -1:
-					minimum_pageno = pageno
-				maximum_pageno = pageno
-			elif oob[0:3]=='\xff\xff\xff':
-				print 'blank page'
-			else:
-				print 'OOB: ', pageno, pprint.pprint(oob)
-
-		return [minimum_pageno, maximum_pageno]
-	
 	def IsJFFS2Block(self,block):
 		ret = self.IsBadBlock(block) 
 		if ret == self.CLEAN_BLOCK:
@@ -497,13 +476,37 @@ class FlashUtil:
 			return 0
 		return 1
 
-	def FindJFFS2(self):
-		block = 0
+	def FindJFFS2Blocks(self):
+		bad_blocks={}
+		minimum_pageno=-1
+		maximum_pageno=-1
+		last_jffs2_page=-1
 
+		print 'Find JFFS2: page count: 0x%x' % (self.io.PageCount)
+		for pageno in range(0,self.io.PageCount,self.io.PagePerBlock):
+			oob=self.io.readOOB(pageno)
+
+			if oob[8:]=='\x85\x19\x03\x20\x08\x00\x00\x00':
+				print 'JFFS2 block found:', pageno, pageno-last_jffs2_page
+				last_jffs2_page=pageno
+
+				if minimum_pageno == -1:
+					minimum_pageno = pageno
+				maximum_pageno = pageno
+			elif oob[0:3]=='\xff\xff\xff':
+				print 'blank page'
+			else:
+				print 'OOB: ', pageno, pprint.pprint(oob)
+
+		return [minimum_pageno, maximum_pageno]
+	
+
+	def FindJFFS2(self):
 		start_block=-1
 		end_block=0
 		jffs2_blocks=[]
-		while 1:
+
+		for block in range(0,self.io.BlockCount,1):
 			ret = self.IsBadBlock(block) 
 			if ret == self.CLEAN_BLOCK:
 				oob = self.io.readOOB(block*self.io.PagePerBlock)
@@ -525,8 +528,6 @@ class FlashUtil:
 				break
 			else:
 				print 'Bad block', block
-
-			block += 1
 
 		if start_block!=-1:
 			jffs2_blocks.append([start_block,block])
