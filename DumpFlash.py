@@ -15,6 +15,8 @@ parser.add_option("-e", action="store_true", dest="erase", default=False,
 				help="Erase")
 parser.add_option("-B", action="store_true", dest="check_bad_blocks", default=False,
 				help="Check bad blocks")
+parser.add_option("-k", action="store_true", dest="skip_bad_blocks_before_writing", default=False,
+				help="Skip bad block before writing")
 parser.add_option("-c", action="store_true", dest="check_ecc", default=False,
 				help="Check ECC")
 
@@ -102,7 +104,7 @@ if options.read:
 
 if options.write:
 	filename=args[0]
-	flash_util.io.writePages(filename, options.offset, start_page, end_page, options.add_oob)
+	flash_util.io.writePages(filename, options.offset, start_page, end_page, options.add_oob, skip_bad_blocks_before_writing=options.skip_bad_blocks_before_writing)
 
 if options.erase:
 	if options.blocks!=None:

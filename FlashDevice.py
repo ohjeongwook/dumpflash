@@ -523,7 +523,7 @@ class NandIO:
 			nand_tool.writePage(pageno,data[i:i+self.RawPageSize])
 			page+=1
 
-	def writePages(self,filename,offset=0,start_page=-1,end_page=-1,add_oob=False,jffs2=False,check_bad_blocks_before_writing=False):
+	def writePages(self,filename,offset=0,start_page=-1,end_page=-1,add_oob=False,jffs2=False,skip_bad_blocks_before_writing=False):
 		fd=open(filename,'rb')
 		fd.seek(offset)
 		data=fd.read()
@@ -539,11 +539,6 @@ class NandIO:
 		if end_page%self.PagePerBlock>0:
 			end_block+=1
 
-		if check_bad_blocks_before_writing:
-			print 'Checking bad blocks before writing...'
-			bad_blocks = self.CheckBadBlocks()
-
-
 		start = time.time()
 		ecc=ECC()
 
@@ -555,12 +550,8 @@ class NandIO:
 		while page<end_page and current_data_offset<len(data) and block<self.BlockCount:
 			oob_postfix='\xFF' * 13
 			if page%self.PagePerBlock == 0:
-				if check_bad_blocks_before_writing and bad_blocks.has_key(page):
-					print '\nSkipping bad block at ', block
-					page+=self.PagePerBlock
-					block+=1
-					continue
-				else:
+
+				if not skip_bad_blocks_before_writing:
 					bad_block_found=False
 					for pageoff in range(0,2,1):
 						oob=self.readOOB(page+pageoff)
@@ -625,6 +616,7 @@ class NandIO:
 			block+=1
 
 	def EraseBlock(self,start_block, end_block):
+		print 'Erasing block: 0x%x ~ 0x%x' % (start_block, end_block)
 		for block in range(start_block, end_block+1, 1):
 			print "Erasing block", block
 			self.eraseBlockByPage(block * self.PagePerBlock)
