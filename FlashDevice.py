@@ -523,7 +523,7 @@ class NandIO:
 			nand_tool.writePage(pageno,data[i:i+self.RawPageSize])
 			page+=1
 
-	def writePages(self,filename,offset=0,start_page=-1,end_page=-1,add_oob=False,jffs2=False,skip_bad_blocks_before_writing=False):
+	def writePages(self,filename,offset=0,start_page=-1,end_page=-1,add_oob=False,jffs2=False,raw_write_mode=False):
 		fd=open(filename,'rb')
 		fd.seek(offset)
 		data=fd.read()
@@ -551,7 +551,7 @@ class NandIO:
 			oob_postfix='\xFF' * 13
 			if page%self.PagePerBlock == 0:
 
-				if not skip_bad_blocks_before_writing:
+				if not raw_write_mode:
 					bad_block_found=False
 					for pageoff in range(0,2,1):
 						oob=self.readOOB(page+pageoff)
