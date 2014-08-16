@@ -15,13 +15,15 @@ parser.add_option("-e", action="store_true", dest="erase", default=False,
 				help="Erase")
 parser.add_option("-B", action="store_true", dest="check_bad_blocks", default=False,
 				help="Check bad blocks")
-parser.add_option("-R", action="store_true", dest="raw_write_mode", default=False,
-				help="Raw write mode - skip bad block before writing")
+parser.add_option("-R", action="store_true", dest="raw_mode", default=False,
+				help="Raw mode - skip bad block before reading/writing")
 parser.add_option("-c", action="store_true", dest="check_ecc", default=False,
 				help="Check ECC")
 
 parser.add_option("-O", action="store_true", dest="add_oob", default=False,
 				help="Add OOB to the source")
+parser.add_option("--OJ", action="store_true", dest="add_jffs2_oob", default=False,
+				help="Add JFFS2 OOB to the source")
 parser.add_option("-o", action="store_true", dest="remove_oob", default=False,
 				help="Remove OOB from the source")
 
@@ -100,11 +102,19 @@ if options.read:
 
 			flash_util.CopyPages(output_filename,  start_page , end_page, options.remove_oob )
 	else:
-		flash_util.readPages(start_page, end_page, options.remove_oob, output_filename, seq=options.seq)
+		flash_util.readPages(start_page, end_page, options.remove_oob, output_filename, seq=options.seq, raw_mode=options.raw_mode)
 
 if options.write:
 	filename=args[0]
-	flash_util.io.writePages(filename, options.offset, start_page, end_page, options.add_oob, raw_write_mode=options.raw_write_mode)
+	add_oob=False
+	add_jffs2_eraser_marker=False
+	if options.add_oob:
+		add_oob=True
+	if options.add_jffs2_oob:
+		add_oob=True
+		add_jffs2_eraser_marker=True
+
+	flash_util.io.writePages(filename, options.offset, start_page, end_page, add_oob, add_jffs2_eraser_marker=add_jffs2_eraser_marker, raw_mode=options.raw_mode)
 
 if options.erase:
 	if options.blocks!=None:

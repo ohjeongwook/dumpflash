@@ -321,7 +321,8 @@ class NandIO:
 		if end_page%self.PagePerBlock>0:
 			end_block+=1
 
-		for page in range(start_page,end_page,self.PagePerBlock):
+		for block in range(0,end_block,1):
+			page+=self.PagePerBlock
 			progress=(page-start_page) * 100 / (end_page-start_page) 
 			if self.UseAnsi:
 				sys.stdout.write('Checking bad blocks %d%% page: %d/%d block: %d/%d\n\033[A' % (progress, page, end_page, block, end_block))
@@ -335,8 +336,8 @@ class NandIO:
 					print 'Bad block found:', block
 					bad_blocks[page]=1
 					break
-			block+=1
-		print 'Checked %d blocks and found %d bad blocks' % ( block, len(bad_blocks))
+
+		print 'Checked %d blocks and found %d bad blocks' % ( block+1, len(bad_blocks))
 		return bad_blocks
 
 	def readOOB(self,pageno):
@@ -412,7 +413,7 @@ class NandIO:
 			data+=chr(ch)
 		return data
 		
-	def readSeq(self,pageno,remove_oob=False):
+	def readSeq(self,pageno,remove_oob=False,raw_mode=False):
 		page=[]
 		self.sendCmd(self.NAND_CMD_READ0)
 		self.waitReady()
@@ -426,7 +427,6 @@ class NandIO:
 
 			if i==0 or i==1:
 				if page_data[self.PageSize+5]!=0xff:
-					print '\nSkipping bad block %d' % (pageno/self.PagePerBlock)
 					bad_block = True
 
 			if remove_oob:
@@ -441,9 +441,11 @@ class NandIO:
 
 		data=''
 
-		if not bad_block or not self.CheckBadBlock:
+		if bad_block and not raw_mode:
+			print '\nSkipping bad block at %d' % (pageno/self.PagePerBlock)
+		else:
 			for ch in page:
-				data+=chr(ch)
+				data+=chr(ch)		
 
 		return data
 
@@ -523,7 +525,7 @@ class NandIO:
 			nand_tool.writePage(pageno,data[i:i+self.RawPageSize])
 			page+=1
 
-	def writePages(self,filename,offset=0,start_page=-1,end_page=-1,add_oob=False,jffs2=False,raw_write_mode=False):
+	def writePages(self,filename,offset=0,start_page=-1,end_page=-1,add_oob=False,add_jffs2_eraser_marker=False,raw_mode=False):
 		fd=open(filename,'rb')
 		fd.seek(offset)
 		data=fd.read()
@@ -546,12 +548,14 @@ class NandIO:
 		block=page/self.PagePerBlock
 		current_data_offset=0
 		length=0
-				
+		
+		print 'add_oob:', add_oob		
+		print 'add_jffs2_eraser_marker:', add_jffs2_eraser_marker
 		while page<end_page and current_data_offset<len(data) and block<self.BlockCount:
 			oob_postfix='\xFF' * 13
 			if page%self.PagePerBlock == 0:
 
-				if not raw_write_mode:
+				if not raw_mode:
 					bad_block_found=False
 					for pageoff in range(0,2,1):
 						oob=self.readOOB(page+pageoff)
@@ -566,7 +570,7 @@ class NandIO:
 						block+=1
 						continue
 				
-				if jffs2:
+				if add_jffs2_eraser_marker:
 					oob_postfix="\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
 
 				self.eraseBlockByPage(page)
@@ -578,7 +582,9 @@ class NandIO:
 				orig_page_data+=(self.PageSize-len(orig_page_data))*'\x00'
 				import copy
 				(ecc0, ecc1, ecc2) = ecc.CalcECC(orig_page_data)
-				page_data=orig_page_data+struct.pack('BBB',ecc0,ecc1,ecc2) + oob_postfix
+
+				oob=struct.pack('BBB',ecc0,ecc1,ecc2) + oob_postfix
+				page_data=orig_page_data+oob
 			else:
 				page_data=data[current_data_offset:current_data_offset+self.RawPageSize]
 				current_data_offset+=self.RawPageSize

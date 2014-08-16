@@ -111,7 +111,10 @@ class FlashUtil:
 		if end_page%self.io.PagePerBlock>0:
 			end_block+=1
 
-		while 1:
+		if end_block>self.io.BlockCount:
+			end_block=self.io.BlockCount
+
+		for block in range(start_block, end_block, 1):
 			ret=self.IsBadBlock(block)
 
 			progress=(block-start_block) * 100 / (end_block-start_block) 
@@ -127,16 +130,11 @@ class FlashUtil:
 			elif ret==self.ERROR:
 				break
 
-			if block>self.io.BlockCount:
-				break
+		print "\nChecked %d blocks and found %d errors" % (block+1,error_count)
 
-			block += 1
-
-		print "\nChecked %d blocks and found %d errors" % (block,error_count)
-
-	def readPages(self,start_page=-1,end_page=-1,remove_oob=False, filename='', append=False, maximum=0, seq=False):
+	def readPages(self,start_page=-1,end_page=-1,remove_oob=False, filename='', append=False, maximum=0, seq=False, raw_mode=False):
 		if seq:
-			return self.readSeqPages(start_page, end_page, remove_oob, filename, append=append, maximum = maximum)
+			return self.readSeqPages(start_page, end_page, remove_oob, filename, append=append, maximum = maximum, raw_mode=raw_mode)
 
 		if filename:
 			if append:
@@ -192,7 +190,7 @@ class FlashUtil:
 			return whole_data[0:maximum]
 		return whole_data
 
-	def readSeqPages(self, start_page=-1, end_page=-1, remove_oob=False, filename='', append=False, maximum = 0):
+	def readSeqPages(self, start_page=-1, end_page=-1, remove_oob=False, filename='', append=False, maximum=0, raw_mode=False):
 		if filename:
 			if append:
 				fd=open(filename,'ab')
@@ -213,7 +211,7 @@ class FlashUtil:
 		length=0
 		start = time.time()
 		for page in range(start_page,end_page,self.io.PagePerBlock):
-			data=self.io.readSeq(page, remove_oob)
+			data=self.io.readSeq(page, remove_oob, raw_mode)
 
 			if filename:
 				if maximum!=0:
