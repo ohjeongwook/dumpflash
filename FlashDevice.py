@@ -549,8 +549,6 @@ class NandIO:
 		current_data_offset=0
 		length=0
 		
-		print 'add_oob:', add_oob		
-		print 'add_jffs2_eraser_marker:', add_jffs2_eraser_marker
 		while page<end_page and current_data_offset<len(data) and block<self.BlockCount:
 			oob_postfix='\xFF' * 13
 			if page%self.PagePerBlock == 0:
