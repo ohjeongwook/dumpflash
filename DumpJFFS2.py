@@ -218,7 +218,12 @@ class JFFS:
 					print "version:\t%x" % version
 					print "ino:\t\t%x" % ino
 					print "node_crc:\t%x" % node_crc
-					print "Payload:\t%s" % (self.DirentMap[pino]['payload'] + "\\" + payload)
+
+					parent_node=''
+					if self.DirentMap.has_key(pino):
+						parent_node=self.DirentMap[pino]['payload']
+
+					print "Payload:\t%s" % (parent_node + "\\" + payload)
 					print ''
 		
 			elif nodetype==0x2004:
@@ -266,7 +271,7 @@ class JFFS:
 		for record in inode_map_record:
 			if dump:
 				print len(inode_map_record)
-				print "Version: %x Offset: %x DSize: %x Data Offset: %x Payload Length: %x" % (record['version'], record['offset'], record['dsize'], record['data_offset'], len(record['payload']))
+				print "\tVersion: %x Offset: %x DSize: %x Data Offset: %x Payload Length: %x" % (record['version'], record['offset'], record['dsize'], record['data_offset'], len(record['payload']))
 
 			offset = record['offset']
 			dsize=record['dsize']
@@ -277,9 +282,6 @@ class JFFS:
 				data+=['\x00'] * new_data_len
 
 			data[offset:offset+dsize]=record['payload']
-
-			if dump:
-				print len(data)
 
 		return ''.join(data)
 
@@ -395,12 +397,12 @@ class JFFS:
 			dump=True
 
 		if dump:
-			print 'path: %s ino: %x' % (path, ino)
+			print 'File %s (ino: %d)' % (path, ino)
 
 		data = self.GetData(self.INodeMap[ino], dump=dump)
 
 		if dump:
-			print 'File %s has length %d' % (path, len(data))
+			print '\tFile length %d' % (len(data))
 
 		if len(data)==0:
 			return
