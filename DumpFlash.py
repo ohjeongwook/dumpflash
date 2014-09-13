@@ -44,10 +44,13 @@ parser.add_option("-S", action="store_true", dest="slow", default=False,
 parser.add_option("-f", "--filename", dest="filename", default='',
 				help="Use file instead of device for operations", metavar="FILENAME")
 
+parser.add_option("-C", "--compare_target_filename", dest="compare_target_filename", default='',
+				help="When writing a file compare with this file before writing and write only differences", metavar="COMPARE_TARGET_FILENAME")
+
 parser.add_option("-t", type="int", default=0, dest="offset")
 parser.add_option("-p", type="int", nargs=2, dest="pages")
 parser.add_option("-b", type="int", nargs=2, dest="blocks")
-	
+
 parser.add_option("-P", type="int", default=512, dest="page_size")
 parser.add_option("-E", type="int", default=16, dest="oob_size")
 parser.add_option("-K", type="int", default=32, dest="pages_per_block")
@@ -114,7 +117,31 @@ if options.write:
 		add_oob=True
 		add_jffs2_eraser_marker=True
 
-	flash_util.io.writePages(filename, options.offset, start_page, end_page, add_oob, add_jffs2_eraser_marker=add_jffs2_eraser_marker, raw_mode=options.raw_mode)
+	#filename vs options.compare_target_filename
+	if options.compare_target_filename!='':
+		cfd=open(options.compare_target_filename,'rb')
+		cfd.seek(options.offset)
+		fd=open(filename,'rb')
+		fd.seek(options.offset)
+
+		current_page=start_page
+		file_offset=0
+		while 1:
+			cdata=cfd.read(flash_util.io.PageSize)
+			data=fd.read(flash_util.io.PageSize)
+
+			if not data:
+				break
+
+			if cdata!=data:
+				print 'Changed page: 0x%x file_offset: 0x%x' % ( current_page, options.offset + file_offset)
+				flash_util.io.writePages(filename, options.offset + file_offset, current_page, current_page+1, add_oob, add_jffs2_eraser_marker=add_jffs2_eraser_marker, raw_mode=options.raw_mode)
+
+			current_page+=1
+			file_offset+=len(data)
+
+	else:
+		flash_util.io.writePages(filename, options.offset, start_page, end_page, add_oob, add_jffs2_eraser_marker=add_jffs2_eraser_marker, raw_mode=options.raw_mode)
 
 if options.erase:
 	if options.blocks!=None:
