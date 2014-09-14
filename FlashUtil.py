@@ -533,11 +533,16 @@ class FlashUtil:
 
 		return jffs2_blocks
 
-	def DumpJFFS2(self):
+	def DumpJFFS2(self,name_prefix=''):
 		i=0
 		for (start_block,end_block) in self.FindJFFS2():
 			print 'Dumping %d JFFS2 block block: %d - %d ...' % (i, start_block,end_block )
-			self.readPages(start_block*self.io.PagePerBlock, (end_block+1)*self.io.PagePerBlock, remove_oob=True, filename='JFFS2-%.2d.dmp' % i, seq=self.UseSequentialMode)
+			if name_prefix:
+				filename='%s%.2d.dmp' % (name_prefix, i)
+			else:
+				filename='JFFS2-%.2d.dmp' % i
+
+			self.readPages(start_block*self.io.PagePerBlock, (end_block+1)*self.io.PagePerBlock, remove_oob=True, filename=filename, seq=self.UseSequentialMode)
 			i+=1
 
 if __name__=='__main__':
