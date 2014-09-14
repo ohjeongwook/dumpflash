@@ -36,6 +36,8 @@ parser.add_option("-j", action="store_true", dest="find_jffs2", default=False,
 				help="Find JFFS2 Image")
 parser.add_option("-J", action="store_true", dest="dump_jffs2", default=False,
 				help="Dump JFFS2 Image")
+parser.add_option("-n", "--name_prefix", dest="name_prefix", default='',
+				help="Set output file name prefix")
 
 parser.add_option("-s", action="store_true", dest="seq", default=False,
 				help="Set sequential row read mode - some NAND models supports")
@@ -117,15 +119,14 @@ if options.write:
 		add_oob=True
 		add_jffs2_eraser_marker=True
 
-	#filename vs options.compare_target_filename
 	if options.compare_target_filename!='':
 		cfd=open(options.compare_target_filename,'rb')
 		cfd.seek(options.offset)
+
 		fd=open(filename,'rb')
 		fd.seek(options.offset)
 
-		current_page=start_page
-		file_offset=0
+		current_page=0
 		while 1:
 			cdata=cfd.read(flash_util.io.PageSize)
 			data=fd.read(flash_util.io.PageSize)
@@ -134,11 +135,32 @@ if options.write:
 				break
 
 			if cdata!=data:
-				print 'Changed page: 0x%x file_offset: 0x%x' % ( current_page, options.offset + file_offset)
-				flash_util.io.writePages(filename, options.offset + file_offset, current_page, current_page+1, add_oob, add_jffs2_eraser_marker=add_jffs2_eraser_marker, raw_mode=options.raw_mode)
+				print 'Changed page: 0x%x file_offset: 0x%x' % ( start_page+current_page, options.offset + current_page*flash_util.io.PageSize)
+				current_block=current_page / flash_util.io.PagePerBlock
 
-			current_page+=1
-			file_offset+=len(data)
+				print 'Erasing and re-programming block: %d' % (current_block)
+				flash_util.io.eraseBlockByPage(current_page)
+				
+				target_start_page=start_page+current_block*flash_util.io.PagePerBlock
+				target_end_page=target_start_page+flash_util.io.PagePerBlock-1
+
+				print 'Programming page: %d ~ %d' % (target_start_page, target_end_page)
+				flash_util.io.writePages(
+									filename, 
+									options.offset + current_block*flash_util.io.PagePerBlock*flash_util.io.PageSize,
+									target_start_page, 
+									target_end_page, 
+									add_oob, 
+									add_jffs2_eraser_marker=add_jffs2_eraser_marker, 
+									raw_mode=options.raw_mode
+								)
+				
+				current_page=(current_block+1)*flash_util.io.PagePerBlock+1
+				fd.seek(options.offset+current_page * flash_util.io.PageSize)
+				cfd.seek(options.offset+current_page * flash_util.io.PageSize)
+
+			else:
+				current_page+=1
 
 	else:
 		flash_util.io.writePages(filename, options.offset, start_page, end_page, add_oob, add_jffs2_eraser_marker=add_jffs2_eraser_marker, raw_mode=options.raw_mode)
@@ -167,4 +189,4 @@ if options.find_jffs2:
 	flash_util.FindJFFS2()
 
 if options.dump_jffs2:
-	flash_util.DumpJFFS2()
+	flash_util.DumpJFFS2(options.name_prefix)
