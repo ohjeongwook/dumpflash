@@ -549,7 +549,7 @@ class NandIO:
 		current_data_offset=0
 		length=0
 
-		while page<end_page and current_data_offset<len(data) and block<self.BlockCount:
+		while page<=end_page and current_data_offset<len(data) and block<self.BlockCount:
 			oob_postfix='\xFF' * 13
 			if page%self.PagePerBlock == 0:
 
@@ -594,7 +594,11 @@ class NandIO:
 			
 			current = time.time()
 
-			progress=(page-start_page) * 100 / (end_page-start_page)
+			if end_page==start_page:
+				progress=100
+			else:
+				progress=(page-start_page) * 100 / (end_page-start_page)
+
 			lapsed_time=current-start
 
 			if lapsed_time>0:
