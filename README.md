@@ -10,7 +10,7 @@ For more details, please read following:
    * Recon 2014 https://www.youtube.com/watch?v=nTPfKT61730
 
 ## LICENSE
-Copyright (c) 2010, Jeong Wook Oh
+Copyright (c) 2014, Jeong Wook Oh
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
