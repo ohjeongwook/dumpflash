@@ -8,6 +8,9 @@ For more details, please read following:
    * http://recon.cx/2014/slides/Reverse%20Engineering%20Flash%20Memory%20for%20Fun%20And%20Benefit.pdf
    * Black Hat USA 2014 https://www.youtube.com/watch?v=E8BSnS4-Kpw
    * Recon 2014 https://www.youtube.com/watch?v=nTPfKT61730
+   * Updated by O.Kleinecke in March/April 2015 to improve LP-NAND-Chip support.
+   * KNOWN ISSUES : TODO : Add (cleaner!?) OOB/ECC Support for LP-Devices.
+                    Investigate FTDI/Code based malwritten/malread bytes (byte mismatch for read/write after chip   erase every 256/256+1/256+2 bytes)
 
 ## LICENSE
 Copyright (c) 2014, Jeong Wook Oh
