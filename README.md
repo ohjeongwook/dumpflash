@@ -10,6 +10,7 @@ For more details, please read following:
    * Recon 2014 https://www.youtube.com/watch?v=nTPfKT61730
    * Updated by O.Kleinecke in March/April 2015 to improve LP-NAND-Chip support.
    * KNOWN ISSUES : TODO : Add (cleaner!?) OOB/ECC Support for LP-Devices.
+                    TODO : Add create/read BBT functions
                     Investigate FTDI/Code based malwritten/malread bytes (byte mismatch for read/write after chip   erase every 256/256+1/256+2 bytes)
 
 ## LICENSE
