@@ -6,7 +6,7 @@ from ECC import *
 import os
 
 class FlashUtil:
-	def __init__(self, filename='', page_size=0x200, oob_size=0x10, page_per_block=0x20,slow=False):
+	def __init__(self, filename='', page_size=0x800, oob_size=0x40, page_per_block=0x40,slow=False):
 		self.UseAnsi=False
 		self.UseSequentialMode=False
 		self.DumpProgress=True
@@ -107,29 +107,18 @@ class FlashUtil:
 
 		start_block=0
 		end_page=self.io.PageCount
-		end_block=end_page/self.io.PagePerBlock
-		if end_page%self.io.PagePerBlock>0:
-			end_block+=1
-
-		if end_block>self.io.BlockCount:
-			end_block=self.io.BlockCount
-
-		for block in range(start_block, end_block, 1):
+		for block in range(self.io.BlockCount):
 			ret=self.IsBadBlock(block)
 
-			progress=(block-start_block) * 100 / (end_block-start_block) 
-			if self.UseAnsi:
-				sys.stdout.write('Checking Bad Blocks %d%% block: %d/%d\n\033[A' % (progress, block, end_block))
-			else:
-				sys.stdout.write('Checking Bad Blocks %d%% block: %d/%d\n' % (progress, block, end_block))
+			progress=(block+1)*100.0/self.io.BlockCount
+			sys.stdout.write('Checking Bad Blocks %d%% block: %d/%d at offset 0x%x\n' % (progress, block+1, self.io.BlockCount, (block * self.io.BlockSize )))
 
 			if ret==self.BAD_BLOCK:
 				error_count+=1
-				print "\nBad block: %d (at physical offset 0x%x)" % (block, (block * self.io.BlockSize ))
+				print "\nBad block: %d (at physical offset 0x%x)" % (block+1, (block * self.io.BlockSize ))
 	
 			elif ret==self.ERROR:
 				break
-
 		print "\nChecked %d blocks and found %d errors" % (block+1,error_count)
 
 	def readPages(self,start_page=-1,end_page=-1,remove_oob=False, filename='', append=False, maximum=0, seq=False, raw_mode=False):
