@@ -256,7 +256,7 @@ class NandIO:
 		onfitmp=self.readFlashData(4)
 
 		onfi=False
-		if onfitmp[0]=='O' and onfitmp[1]=='N' and onfitmp[2]=='F' and onfitmp[3]=='I':
+		if onfitmp[0]==0x4F and onfitmp[1]==0x4E and onfitmp[2]==0x46 and onfitmp[3]==0x49:
 			onfi=True
 
 		if onfi:
