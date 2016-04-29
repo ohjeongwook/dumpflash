@@ -10,6 +10,9 @@ class FlashFile:
 
 		self.Open(filename)
 		self.SetPageInfo(page_size,oob_size,page_per_block)
+		
+	def IsInitialized(self):
+		return True
 
 	def SetUseAnsi(self,use_ansi):
 		self.UseAnsi=use_ansi
@@ -46,7 +49,7 @@ class FlashFile:
 	def Close(self):
 		self.fd.close()
 	
-	def readPage(self,pageno,remove_oob=False):
+	def ReadPage(self,pageno,remove_oob=False):
 		self.fd.seek(pageno*self.RawPageSize)
 
 		if remove_oob:
@@ -54,7 +57,7 @@ class FlashFile:
 		else:
 			return self.fd.read(self.RawPageSize)
 
-	def readOOB(self,pageno):
+	def ReadOOB(self,pageno):
 		self.fd.seek(pageno*self.RawPageSize+self.PageSize)
 		return self.fd.read(self.OOBSize)
 
