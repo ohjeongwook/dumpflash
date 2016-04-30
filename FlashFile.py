@@ -48,9 +48,15 @@ class FlashFile:
 
 	def Close(self):
 		self.fd.close()
-	
+
+	def GetBlockOffset(self,block):
+		return block * self.RawBlockSize
+
+	def GetPageOffset(self,pageno):
+		return pageno*self.RawPageSize
+
 	def ReadPage(self,pageno,remove_oob=False):
-		self.fd.seek(pageno*self.RawPageSize)
+		self.fd.seek(self.GetPageOffset(pageno))
 
 		if remove_oob:
 			return self.fd.read(self.PageSize)
@@ -60,6 +66,3 @@ class FlashFile:
 	def ReadOOB(self,pageno):
 		self.fd.seek(pageno*self.RawPageSize+self.PageSize)
 		return self.fd.read(self.OOBSize)
-
-	def GetBlockOffset(self,block):
-		return block * self.RawBlockSize
