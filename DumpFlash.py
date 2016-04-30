@@ -8,47 +8,29 @@ parser = OptionParser()
 
 parser.add_option("-i", action="store_true", dest="information", default=False)
 
-parser.add_option("-r", action="store_true", dest="read", default=False,
-				help="Read NAND Flash to a file")
-parser.add_option("-w", action="store_true", dest="write", default=False,
-				help="Write file to a NAND Flash")
-parser.add_option("-e", action="store_true", dest="erase", default=False,
-				help="Erase")
-parser.add_option("-B", action="store_true", dest="check_bad_blocks", default=False,
-				help="Check bad blocks")
-parser.add_option("-R", action="store_true", dest="raw_mode", default=False,
-				help="Raw mode - skip bad block before reading/writing")
-parser.add_option("-c", action="store_true", dest="check_ecc", default=False,
-				help="Check ECC")
+parser.add_option("-r", action="store_true", dest="read", default=False, help="Read NAND Flash to a file")
+parser.add_option("-w", action="store_true", dest="write", default=False, help="Write file to a NAND Flash")
 
-parser.add_option("-O", action="store_true", dest="add_oob", default=False,
-				help="Add OOB to the source")
-parser.add_option("--OJ", action="store_true", dest="add_jffs2_oob", default=False,
-				help="Add JFFS2 OOB to the source")
-parser.add_option("-o", action="store_true", dest="remove_oob", default=False,
-				help="Remove OOB from the source")
+parser.add_option("-e", action="store_true", dest="erase", default=False, help="Erase")
+parser.add_option("-B", action="store_true", dest="check_bad_blocks", default=False, help="Check bad blocks")
+parser.add_option("-R", action="store_true", dest="raw_mode", default=False, help="Raw mode - skip bad block before reading/writing")
+parser.add_option("-c", action="store_true", dest="check_ecc", default=False, help="Check ECC")
+parser.add_option("-O", action="store_true", dest="add_oob", default=False, help="Add OOB to the source")
+parser.add_option("--OJ", action="store_true", dest="add_jffs2_oob", default=False, help="Add JFFS2 OOB to the source")
+parser.add_option("-o", action="store_true", dest="remove_oob", default=False, help="Remove OOB from the source")
 
-parser.add_option("-u", action="store_true", dest="find_uboot_images", default=False,
-				help="Find U-Boot images")
-parser.add_option("-U", action="store_true", dest="dump_uboot_images", default=False,
-				help="Dump U-Boot images")
+parser.add_option("-u", action="store_true", dest="find_uboot_images", default=False, help="Find U-Boot images")
+parser.add_option("-U", action="store_true", dest="dump_uboot_images", default=False, help="Dump U-Boot images")
 
-parser.add_option("-j", action="store_true", dest="find_jffs2", default=False,
-				help="Find JFFS2 Image")
-parser.add_option("-J", action="store_true", dest="dump_jffs2", default=False,
-				help="Dump JFFS2 Image")
-parser.add_option("-n", "--name_prefix", dest="name_prefix", default='',
-				help="Set output file name prefix")
+parser.add_option("-j", action="store_true", dest="find_jffs2", default=False, help="Find JFFS2 Image")
+parser.add_option("-J", action="store_true", dest="dump_jffs2", default=False, help="Dump JFFS2 Image")
+parser.add_option("-n", dest="name_prefix", default='', help="Set output file name prefix")
 
-parser.add_option("-s", action="store_true", dest="seq", default=False,
-				help="Set sequential row read mode - some NAND models supports")
-parser.add_option("-S", action="store_true", dest="slow", default=False,
-				help="Set clock FTDI chip at 12MHz instead of 60MHz")
-parser.add_option("-f", "--filename", dest="filename", default='',
-				help="Use file instead of device for operations", metavar="FILENAME")
+parser.add_option("-s", action="store_true", dest="seq", default=False, help="Set sequential row read mode - some NAND models supports")
+parser.add_option("-S", action="store_true", dest="slow", default=False, help="Set clock FTDI chip at 12MHz instead of 60MHz")
+parser.add_option("-f", dest="filename", default='', help="Use file instead of device for operations")
 
-parser.add_option("-C", "--compare_target_filename", dest="compare_target_filename", default='',
-				help="When writing a file compare with this file before writing and write only differences", metavar="COMPARE_TARGET_FILENAME")
+parser.add_option("-C", dest="compare_target_filename", default='', help="When writing a file compare with this file before writing and write only differences", metavar="COMPARE_TARGET_FILENAME")
 
 parser.add_option("-t", type="int", default=0, dest="offset")
 parser.add_option("-p", type="int", nargs=2, dest="pages")
@@ -98,6 +80,8 @@ if options.information:
 	flash_util.io.DumpInfo()
 
 if options.read:
+	flash_util.io.DumpInfo()
+	
 	output_filename=args[0]
 
 	if options.filename:
