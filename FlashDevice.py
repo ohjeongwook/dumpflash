@@ -295,16 +295,18 @@ class NandIO:
 			self.Manufacturer="National Semiconductors"
 		elif id[0]==0x07:
 			self.Manufacturer="Renesas"
-		if id[0]==0x20:
+		elif id[0]==0x20:
 			self.Manufacturer="ST Micro"
-		if id[0]==0xad:
+		elif id[0]==0xad:
 			self.Manufacturer="Hynix"
-		if id[0]==0x2c:
+		elif id[0]==0x2c:
 			self.Manufacturer="Micron"
-		if id[0]==0x01:
+		elif id[0]==0x01:
 			self.Manufacturer="AMD"
-		if id[0]==0xc2:
+		elif id[0]==0xc2:
 			self.Manufacturer="Macronix"
+		else:
+			self.Manufacturer='Unknown'
 
 
 		idstr=''
@@ -318,7 +320,7 @@ class NandIO:
 		self.IDLength = (len(idstr) / 2)
 		self.BitsPerCell = self.GetBitsPerCell(id[2])
 		if self.PageSize==0:
-                        extid=id[3]
+			extid=id[3]
 			if ((self.IDLength == 6) and (self.Manufacturer == "Samsung") and (self.BitsPerCell > 1)):
 				self.Pagesize = 2048 << (extid & 0x03)
 				extid >>= 2
