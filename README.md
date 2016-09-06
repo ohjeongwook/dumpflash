@@ -9,8 +9,8 @@ DumpFlash is a tool to retrieve and write Flash data to the physical NAND Flash 
 http://zadig.akeo.ie/
 
 ### pyftdi
+Use one of the following options.
 * Install from source https://github.com/eblot/pyftdi
-OR
 * pip install pyftdi
 
 
