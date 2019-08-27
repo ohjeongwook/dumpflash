@@ -8,10 +8,10 @@ DumpFlash is a tool to retrieve and write Flash data to the physical NAND Flash 
 ### libusb-1.0
 http://zadig.akeo.ie/
 
-### pyftdi
+### pyftdi 0.13.x version (0.2x.y is Python 3+ only!)
 Use one of the following options.
 * Install from source https://github.com/eblot/pyftdi
-* pip install pyftdi
+* ```pip install pyftdi==0.13.4``` - latest as of 2017-09-13
 
 
 ## Documentations
