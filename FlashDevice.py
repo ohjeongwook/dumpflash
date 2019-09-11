@@ -202,7 +202,7 @@ class NandIO:
             data = data[0:-1:2]
         else:
             data = self.Ftdi.read_data_bytes(count)
-        return data.tolist()
+        return data.tobytes()
 
     def nandWrite(self, cl, al, data):
         """TODO"""
@@ -464,7 +464,7 @@ class NandIO:
 
     def ReadPage(self, pageno, remove_oob=False):
         """TODO"""
-        bytes_to_read = []
+        bytes_to_read = bytearray()
 
         if self.Options&self.LP_Options:
             self.sendCmd(self.NAND_CMD_READ0)
@@ -502,11 +502,7 @@ class NandIO:
                 self.WaitReady()
                 bytes_to_read += self.readFlashData(self.OOBSize)
 
-        data = ''
-
-        for ch in bytes_to_read:
-            data += chr(ch)
-        return data
+        return bytes_to_read
 
     def ReadSeq(self, pageno, remove_oob=False, raw_mode=False):
         """TODO"""
