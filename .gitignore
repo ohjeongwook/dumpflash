@@ -3,3 +3,4 @@ ECC.pyc
 FlashDevice.pyc
 FlashFile.pyc
 FlashUtil.pyc
+*.bak
