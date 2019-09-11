@@ -5,6 +5,7 @@ from optparse import OptionParser
 import pprint
 import os
 import struct
+import sys
 import time
 import FlashFile
 import FlashDevice
@@ -184,10 +185,7 @@ class FlashUtil:
         start = time.time()
 #        last_time = time.time()
         for page in range(start_page, end_page, 1):
-            print('page:', page)
             data = self.io.ReadPage(page, remove_oob)
-
-            print('data: %x' % len(data))
 
             if filename:
                 if maximum != 0:
@@ -596,7 +594,6 @@ class FlashUtil:
             i += 1
 
 if __name__ == '__main__':
-    import sys
     f = sys.argv[1]
     flash_util = FlashUtil(f)
     flash_util.FindUBootImages()
