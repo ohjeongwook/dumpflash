@@ -324,7 +324,7 @@ class NandIO:
             if idstr[0:2] == idstr[-2:]:
                 idstr = idstr[:-2]
         self.IDString = idstr
-        self.IDLength = (len(idstr) / 2)
+        self.IDLength = int(len(idstr) / 2)
         self.BitsPerCell = self.GetBitsPerCell(flash_identifiers[2])
         if self.PageSize == 0:
             extid = flash_identifiers[3]
@@ -379,14 +379,14 @@ class NandIO:
                 if ((self.IDLength >= 6) and (self.Manufacturer == "Toshiba") and (self.BitsPerCell > 1) and ((flash_identifiers[5] & 0x7) == 0x6) and not flash_identifiers[4] & 0x80):
                     self.OOBSize = 32 * self.PageSize >> 9
         else:
-            self.OOBSize = self.PageSize / 32
+            self.OOBSize = int(self.PageSize / 32)
 
         if self.PageSize > 0:
             self.PageCount = int(self.ChipSizeMB*1024*1024/self.PageSize)
         self.RawPageSize = self.PageSize+self.OOBSize
         self.BlockSize = self.EraseSize
-        self.BlockCount = (self.ChipSizeMB*1024*1024)/self.BlockSize
-        self.PagePerBlock = self.PageCount/self.BlockCount
+        self.BlockCount = int((self.ChipSizeMB*1024*1024)/self.BlockSize)
+        self.PagePerBlock = int(self.PageCount/self.BlockCount)
         self.RawBlockSize = self.PagePerBlock*(self.PageSize + self.OOBSize)
         return True
 
