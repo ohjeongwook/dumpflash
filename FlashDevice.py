@@ -175,6 +175,8 @@ class NandIO:
         while 1:
             self.Ftdi.write_data(Array('B', [ftdi.Ftdi.GET_BITS_HIGH]))
             data = self.Ftdi.read_data_bytes(1)
+            if not data:
+                raise Exception('FTDI device Not ready. Try restarting it.')
             if data[0]&2 == 0x2:
                 return
             if self.Debug > 0:
