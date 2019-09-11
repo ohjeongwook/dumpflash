@@ -183,7 +183,7 @@ class FlashUtil:
         whole_data = ''
         length = 0
         start = time.time()
-#        last_time = time.time()
+        last_time = time.time()
         for page in range(start_page, end_page, 1):
             data = self.io.ReadPage(page, remove_oob)
 
@@ -200,11 +200,12 @@ class FlashUtil:
 
             length += len(data)
 
+
             if self.DumpProgress:
                 current = time.time()
-                if current-start > self.DumpProgressInterval:
+                if current-last_time > self.DumpProgressInterval:
                     lapsed_time = current-start
-#                    last_time = current
+                    last_time = current
 
                     progress = (page-start_page) * 100 / (end_page-start_page)
                     block = page/self.io.PagePerBlock
