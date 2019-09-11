@@ -156,7 +156,7 @@ class NandIO:
         else:
             self.Ftdi.write_data(Array('B', [ftdi.Ftdi.DISABLE_CLK_DIV5]))
 
-        self.Ftdi.set_latency_timer(1)
+        self.Ftdi.set_latency_timer(self.Ftdi.LATENCY_MIN)
         self.Ftdi.purge_buffers()
         self.Ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x0, 0x1]))
         self.WaitReady()
