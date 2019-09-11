@@ -15,8 +15,6 @@ class NandIO:
     ADR_CL = 0x40
     ADR_AL = 0x80
 
-    NAND_CMD_READID = 0x90
-
     NAND_CMD_READ0 = 0
     NAND_CMD_READ1 = 1
     NAND_CMD_RNDOUT = 5
@@ -49,6 +47,7 @@ class NandIO:
 
     LP_Options = 1
     DeviceDescriptions = [
+        # name, ID, PageSize, ChipSizeMb, EraseSize, Options, AddrCycles
         ["NAND 1MiB 5V 8-bit",        0x6e, 256, 1, 0x1000, 0, 3],
         ["NAND 2MiB 5V 8-bit",        0x64, 256, 2, 0x1000, 0, 3],
         ["NAND 4MiB 5V 8-bit",        0x6b, 512, 4, 0x2000, 0, 3],
@@ -121,7 +120,6 @@ class NandIO:
         ["NAND 64GiB 1,8V 8-bit",    0x1E, 0, 65536, 0, LP_Options, 6],
         ["NAND 64GiB 3,3V 8-bit",    0x3E, 0, 65536, 0, LP_Options, 6],
 
-        #["NAND 4MiB 3,3V 8-bit",    0xd5, 512, 4, 0x2000, 0, 3]
     ]
 
     Debug = 0
@@ -285,19 +283,14 @@ class NandIO:
         self.sendAddr(0x20, 1)
         onfitmp = self.readFlashData(4)
 
-        onfi = False
-        if onfitmp[0] == 0x4F and onfitmp[1] == 0x4E and onfitmp[2] == 0x46 and onfitmp[3] == 0x49:
-            onfi = True
+        onfi = (onfitmp == [0x4F, 0x4E, 0x46, 0x49])
 
         if onfi:
             self.sendCmd(self.NAND_CMD_ONFI)
             self.sendAddr(0, 1)
             self.WaitReady()
             onfi_data = self.readFlashData(0x100)
-            if onfi_data[0] == 0x4F and onfi_data[1] == 0x4E and onfi_data[2] == 0x46 and onfi_data[3] == 0x49:
-                onfi = True
-            else:
-                onfi = False
+            onfi = onfi_data == [0x4F, 0x4E, 0x46, 0x49]
 
         if flash_identifiers[0] == 0x98:
             self.Manufacturer = 'Toshiba'
@@ -342,7 +335,6 @@ class NandIO:
                     self.OOBSize = 128
                 if (((extid >> 2) & 0x04) | (extid & 0x03)) == 2:
                     self.OOBSize = 218
-
                 if (((extid >> 2) & 0x04) | (extid & 0x03)) == 3:
                     self.OOBSize = 400
                 if (((extid >> 2) & 0x04) | (extid & 0x03)) == 4:
@@ -390,11 +382,7 @@ class NandIO:
             self.OOBSize = self.PageSize / 32
 
         if self.PageSize > 0:
-            self.PageCount = (self.ChipSizeMB*1024*1024)/self.PageSize
-            print("toto")
-            print(self.PageCount)
-            print(self.PageSize)
-            print("toto")
+            self.PageCount = int(self.ChipSizeMB*1024*1024/self.PageSize)
         self.RawPageSize = self.PageSize+self.OOBSize
         self.BlockSize = self.EraseSize
         self.BlockCount = (self.ChipSizeMB*1024*1024)/self.BlockSize
