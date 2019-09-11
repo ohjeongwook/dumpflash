@@ -1,68 +1,76 @@
-import pprint
-import struct
-from ECC import *
+"""TODO"""
+# pylint: disable=invalid-name
+# pylint: disable=line-too-long
 
-class FlashFile:	
-	def __init__(self,filename, page_size=0x200, oob_size=0x10, page_per_block=0x20):
-		self.DebugLevel=0
-		self.FileSize=0
-		self.UseAnsi=False
+class FlashFile:
+    def __init__(self, filename, page_size=0x200, oob_size=0x10, page_per_block=0x20):
+        self.DebugLevel = 0
+        self.FileSize = 0
+        self.UseAnsi = False
 
-		self.Open(filename)
-		self.SetPageInfo(page_size,oob_size,page_per_block)
-		
-	def IsInitialized(self):
-		return True
+        self.Open(filename)
+        self.SetPageInfo(page_size, oob_size, page_per_block)
 
-	def SetUseAnsi(self,use_ansi):
-		self.UseAnsi=use_ansi
+    def IsInitialized(self):
+        """TODO"""
+        return True
 
-	def SetPageInfo(self, page_size, oob_size, page_per_block):
-		self.PageSize=page_size
-		self.OOBSize=oob_size
-		self.RawPageSize=self.PageSize+self.OOBSize
-		self.PagePerBlock=page_per_block
-		self.BlockSize=self.PageSize * self.PagePerBlock
-		self.RawBlockSize=self.RawPageSize * self.PagePerBlock
-		self.PageCount=(self.FileSize)/self.PageSize
-		self.BlockCount = self.PageCount/self.PagePerBlock
+    def SetUseAnsi(self, use_ansi):
+        """TODO"""
+        self.UseAnsi = use_ansi
 
-		print 'PageSize: 0x%x' % self.PageSize
-		print 'OOBSize: 0x%x' % self.OOBSize
-		print 'PagePerBlock: 0x%x' % self.PagePerBlock
-		print 'BlockSize: 0x%x' % self.BlockSize
-		print 'RawPageSize: 0x%x' % self.RawPageSize
-		print 'PageCount: 0x%x' % self.PageCount
-		print 'FileSize: 0x%x' % self.FileSize
-		print ''
+    def SetPageInfo(self, page_size, oob_size, page_per_block):
+        """TODO"""
+        self.PageSize = page_size
+        self.OOBSize = oob_size
+        self.RawPageSize = self.PageSize+self.OOBSize
+        self.PagePerBlock = page_per_block
+        self.BlockSize = self.PageSize * self.PagePerBlock
+        self.RawBlockSize = self.RawPageSize * self.PagePerBlock
+        self.PageCount = (self.FileSize)/self.PageSize
+        self.BlockCount = self.PageCount/self.PagePerBlock
 
-	def Open(self,filename):
-		try:
-			self.fd=open(filename,'rb')
-			import os
-			self.FileSize=os.path.getsize(filename)
-		except:
-			print "Can't open a file:",filename
-			return False
-		return True
+        print('PageSize: 0x%x' % self.PageSize)
+        print('OOBSize: 0x%x' % self.OOBSize)
+        print('PagePerBlock: 0x%x' % self.PagePerBlock)
+        print('BlockSize: 0x%x' % self.BlockSize)
+        print('RawPageSize: 0x%x' % self.RawPageSize)
+        print('PageCount: 0x%x' % self.PageCount)
+        print('FileSize: 0x%x' % self.FileSize)
+        print('')
 
-	def Close(self):
-		self.fd.close()
+    def Open(self, filename):
+        """TODO"""
+        try:
+            self.fd = open(filename, 'rb')
+            import os
+            self.FileSize = os.path.getsize(filename)
+        except:
+            print('Can\'t open a file:', filename)
+            return False
+        return True
 
-	def GetBlockOffset(self,block):
-		return block * self.RawBlockSize
+    def Close(self):
+        """TODO"""
+        self.fd.close()
 
-	def GetPageOffset(self,pageno):
-		return pageno*self.RawPageSize
+    def GetBlockOffset(self, block):
+        """TODO"""
+        return block * self.RawBlockSize
 
-	def ReadPage(self,pageno,remove_oob=False):
-		self.fd.seek(self.GetPageOffset(pageno))
+    def GetPageOffset(self, pageno):
+        """TODO"""
+        return pageno*self.RawPageSize
 
-		if remove_oob:
-			return self.fd.read(self.PageSize)
-		else:
-			return self.fd.read(self.RawPageSize)
+    def ReadPage(self, pageno, remove_oob=False):
+        """TODO"""
+        self.fd.seek(self.GetPageOffset(pageno))
 
-	def ReadOOB(self,pageno):
-		self.fd.seek(pageno*self.RawPageSize+self.PageSize)
-		return self.fd.read(self.OOBSize)
+        if remove_oob:
+            return self.fd.read(self.PageSize)
+        return self.fd.read(self.RawPageSize)
+
+    def ReadOOB(self, pageno):
+        """TODO"""
+        self.fd.seek(pageno*self.RawPageSize+self.PageSize)
+        return self.fd.read(self.OOBSize)
