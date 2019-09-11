@@ -3,7 +3,6 @@
 # pylint: disable=line-too-long
 import sys
 from optparse import OptionParser
-import FlashDevice
 import FlashUtil
 
 parser = OptionParser()
