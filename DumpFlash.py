@@ -58,8 +58,7 @@ except:
 start_page = -1
 end_page = -1
 if options.pages is not None:
-    if not options.pages:
-        start_page = options.pages[0]
+    start_page = options.pages[0]
     if len(options.pages) > 1:
         end_page = options.pages[1]
 
