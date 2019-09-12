@@ -102,7 +102,7 @@ class NandIO:
         # 32 Gigabit
         ["NAND 4GiB 1,8V 8-bit",    0xA7, 0, 4096, 0, LP_Options, 5],
         ["NAND 4GiB 3,3V 8-bit",    0xD7, 0, 4096, 0, LP_Options, 5],
-        ["NAND 4GiB 3,3V 8-bit",    0x2C, 0, 4096, 0, LP_Options, 6],
+        ["NAND 4GiB 3,3V 8-bit",    0x2C, 0, 4096, 0, LP_Options, 5],
 
         # 64 Gigabit
         ["NAND 8GiB 1,8V 8-bit",    0xAE, 0, 8192, 0, LP_Options, 5],
@@ -290,7 +290,7 @@ class NandIO:
             self.sendAddr(0, 1)
             self.WaitReady()
             onfi_data = self.readFlashData(0x100)
-            onfi = onfi_data == [0x4F, 0x4E, 0x46, 0x49]
+            onfi = onfi_data[0:4] == [0x4F, 0x4E, 0x46, 0x49]
 
         if flash_identifiers[0] == 0x98:
             self.Manufacturer = 'Toshiba'
