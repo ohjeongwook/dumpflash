@@ -173,7 +173,7 @@ class FlashUtil:
         if end_page == -1:
             end_page = self.io.PageCount
 
-        end_block = end_page/self.io.PagePerBlock
+        end_block = int(end_page/self.io.PagePerBlock)
         if end_page%self.io.PagePerBlock:
             end_block += 1
 
