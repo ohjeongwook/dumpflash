@@ -346,14 +346,14 @@ class FlashUtil:
 
         wfd = open(output_filename, 'wb')
 
-        start_block = start / self.io.RawBlockSize
+        start_block = int(start / self.io.RawBlockSize)
         start_block_offset = start % self.io.RawBlockSize
-        start_page = start_block_offset / self.io.RawPageSize
+        start_page = int(start_block_offset / self.io.RawPageSize)
         start_page_offset = start_block_offset % self.io.RawPageSize
 
-        end_block = end / self.io.RawBlockSize
+        end_block = int(end / self.io.RawBlockSize)
         end_block_offset = end % self.io.RawBlockSize
-        end_page = end_block_offset / self.io.RawPageSize
+        end_page = int(end_block_offset / self.io.RawPageSize)
         end_page_offset = end_block_offset % self.io.RawPageSize
 
         print('Dumping blocks (Block: 0x%x Offset: 0x%x ~  Block: 0x%x Offset: 0x%x)' % (start_block, start_block_offset, end_block, end_block_offset))
