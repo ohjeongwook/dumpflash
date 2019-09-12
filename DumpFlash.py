@@ -86,13 +86,13 @@ if options.read:
 
     if options.filename:
         if options.add_oob:
-            print(('Add OOB to %s' % (options.filename)))
+            print('Add OOB to %s' % (options.filename))
             flash_util.AddOOB(options.filename, output_filename)
         else:
             if options.remove_oob:
-                print(('Removing OOB from pages(0x%x - 0x%x) to %s' % (start_page, end_page, output_filename)))
+                print('Removing OOB from pages(0x%x - 0x%x) to %s' % (start_page, end_page, output_filename))
             else:
-                print(('Copying OOB from pages(0x%x - 0x%x) to %s' % (start_page, end_page, output_filename)))
+                print('Copying OOB from pages(0x%x - 0x%x) to %s' % (start_page, end_page, output_filename))
 
             flash_util.CopyPages(output_filename, start_page, end_page, options.remove_oob)
     else:
@@ -124,16 +124,16 @@ if options.write:
                 break
 
             if cdata != data:
-                print(('Changed Page:0x%x file_offset: 0x%x' % (start_page+current_page, options.offset + current_page*flash_util.io.PageSize)))
+                print('Changed Page:0x%x file_offset: 0x%x' % (start_page+current_page, options.offset + current_page*flash_util.io.PageSize))
                 current_block = current_page / flash_util.io.PagePerBlock
 
-                print(('Erasing and re-programming Block: %d' % (current_block)))
+                print('Erasing and re-programming Block: %d' % (current_block))
                 flash_util.io.EraseBlockByPage(current_page)
 
                 target_start_page = start_page+current_block*flash_util.io.PagePerBlock
                 target_end_page = target_start_page+flash_util.io.PagePerBlock-1
 
-                print(('Programming Page: %d ~ %d' % (target_start_page, target_end_page)))
+                print('Programming Page: %d ~ %d' % (target_start_page, target_end_page))
                 flash_util.io.WritePages(
                     filename,
                     options.offset + current_block*flash_util.io.PagePerBlock*flash_util.io.PageSize,
