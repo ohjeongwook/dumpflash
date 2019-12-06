@@ -3,7 +3,7 @@
 # pylint: disable=line-too-long
 
 class FlashFile:
-    def __init__(self, filename, page_size=0x200, oob_size=0x10, page_per_block=0x20):
+    def __init__(self, filename, page_size = 0x200, oob_size = 0x10, page_per_block = 0x20):
         self.DebugLevel = 0
         self.FileSize = 0
         self.UseAnsi = False
@@ -62,7 +62,7 @@ class FlashFile:
         """TODO"""
         return pageno*self.RawPageSize
 
-    def ReadPage(self, pageno, remove_oob=False):
+    def ReadPage(self, pageno, remove_oob = False):
         """TODO"""
         self.fd.seek(self.GetPageOffset(pageno))
 

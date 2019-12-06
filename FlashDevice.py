@@ -136,14 +136,14 @@ class NandIO:
     RemoveOOB = False
     UseSequentialMode = False
 
-    def __init__(self, do_slow=False):
+    def __init__(self, do_slow = False):
         self.Slow = do_slow
         self.UseAnsi = False
         self.Ftdi = ftdi.Ftdi()
         try:
-            self.Ftdi.open(0x0403, 0x6010, interface=1)
+            self.Ftdi.open(0x0403, 0x6010, interface = 1)
         except:
-            traceback.print_exc(file=sys.stdout)
+            traceback.print_exc(file = sys.stdout)
             return
 
         self.Ftdi.set_bitmode(0, self.Ftdi.BITMODE_MCU)
@@ -218,7 +218,7 @@ class NandIO:
         cmds += [ftdi.Ftdi.WRITE_EXTENDED, cmd_type, 0, ord(data[0])]
         for i in range(1, len(data), 1):
             #if i == 256:
-            #    cmds+=[Ftdi.WRITE_SHORT, 0, ord(data[i])]
+            #    cmds += [Ftdi.WRITE_SHORT, 0, ord(data[i])]
             cmds += [ftdi.Ftdi.WRITE_SHORT, 0, ord(data[i])]
         self.Ftdi.write_data(Array('B', cmds))
 
@@ -462,7 +462,7 @@ class NandIO:
             data += chr(ch)
         return data
 
-    def ReadPage(self, pageno, remove_oob=False):
+    def ReadPage(self, pageno, remove_oob = False):
         """TODO"""
         bytes_to_read = bytearray()
 
@@ -504,7 +504,7 @@ class NandIO:
 
         return bytes_to_read
 
-    def ReadSeq(self, pageno, remove_oob=False, raw_mode=False):
+    def ReadSeq(self, pageno, remove_oob = False, raw_mode = False):
         """TODO"""
         page = []
         self.sendCmd(self.NAND_CMD_READ0)
@@ -614,12 +614,12 @@ class NandIO:
 
 #    def writeBlock(self, block_data):
 #        nand_tool.EraseBlockByPage(0) #need to fix
-#        page=0
-#        for i in range(0,len(data),self.RawPageSize):
-#            nand_tool.WritePage(pageno,data[i:i+self.RawPageSize])
-#            page+=1
+#        page = 0
+#        for i in range(0, len(data), self.RawPageSize):
+#            nand_tool.WritePage(pageno, data[i:i+self.RawPageSize])
+#            page += 1
 
-    def WritePages(self, filename, offset=0, start_page=-1, end_page=-1, add_oob=False, add_jffs2_eraser_marker=False, raw_mode=False):
+    def WritePages(self, filename, offset = 0, start_page = -1, end_page = -1, add_oob = False, add_jffs2_eraser_marker = False, raw_mode = False):
         """TODO"""
         fd = open(filename, 'rb')
         fd.seek(offset)

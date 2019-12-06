@@ -391,14 +391,14 @@ if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
 
-    parser.add_option('-f', action='store_true', dest='fix_header', default=False)
-    parser.add_option('-c', action='store_true', dest='check_crc', default=False)
-    parser.add_option('-e', action='store_true', dest='extract', default=False)
-    parser.add_option('-m', action='store_true', dest='merge', default=False)
-    parser.add_option('-o', '--output_filename', dest='output_filename', default='',
-                      help='Set output_filename filename', metavar='output_filename')
-    parser.add_option('-H', '--header_file', dest='header_file', default='',
-                      help='Set header filename', metavar='header')
+    parser.add_option('-f', action = 'store_true', dest = 'fix_header', default = False)
+    parser.add_option('-c', action = 'store_true', dest = 'check_crc', default = False)
+    parser.add_option('-e', action = 'store_true', dest = 'extract', default = False)
+    parser.add_option('-m', action = 'store_true', dest = 'merge', default = False)
+    parser.add_option('-o', '--output_filename', dest = 'output_filename', default = '', 
+                      help = 'Set output_filename filename', metavar = 'output_filename')
+    parser.add_option('-H', '--header_file', dest = 'header_file', default = '', 
+                      help = 'Set header filename', metavar = 'header')
 
     (options, args) = parser.parse_args()
     f = args[0]

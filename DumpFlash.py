@@ -95,7 +95,7 @@ if options.read:
 
             flash_util.CopyPages(output_filename, start_page, end_page, options.remove_oob)
     else:
-        flash_util.ReadPages(start_page, end_page, options.remove_oob, output_filename, seq=options.seq, raw_mode=options.raw_mode)
+        flash_util.ReadPages(start_page, end_page, options.remove_oob, output_filename, seq = options.seq, raw_mode = options.raw_mode)
 
 if options.write:
     filename = args[0]
@@ -134,13 +134,13 @@ if options.write:
 
                 print('Programming Page: %d ~ %d' % (target_start_page, target_end_page))
                 flash_util.io.WritePages(
-                    filename,
-                    options.offset + current_block*flash_util.io.PagePerBlock*flash_util.io.PageSize,
-                    target_start_page,
-                    target_end_page,
-                    add_oob,
-                    add_jffs2_eraser_marker=add_jffs2_eraser_marker,
-                    raw_mode=options.raw_mode
+                    filename, 
+                    options.offset + current_block*flash_util.io.PagePerBlock*flash_util.io.PageSize, 
+                    target_start_page, 
+                    target_end_page, 
+                    add_oob, 
+                    add_jffs2_eraser_marker = add_jffs2_eraser_marker, 
+                    raw_mode = options.raw_mode
                 )
 
                 current_page = (current_block+1)*flash_util.io.PagePerBlock+1
@@ -151,7 +151,7 @@ if options.write:
                 current_page += 1
 
     else:
-        flash_util.io.WritePages(filename, options.offset, start_page, end_page, add_oob, add_jffs2_eraser_marker=add_jffs2_eraser_marker, raw_mode=options.raw_mode)
+        flash_util.io.WritePages(filename, options.offset, start_page, end_page, add_oob, add_jffs2_eraser_marker = add_jffs2_eraser_marker, raw_mode = options.raw_mode)
 
 if options.erase:
     if options.blocks is not None:

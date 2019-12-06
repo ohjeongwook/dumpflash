@@ -14,7 +14,7 @@ import ECC
 
 class FlashUtil:
     """TODO"""
-    def __init__(self, filename='', page_size=0x800, oob_size=0x40, page_per_block=0x40, slow=False):
+    def __init__(self, filename = '', page_size = 0x800, oob_size = 0x40, page_per_block = 0x40, slow = False):
         """TODO"""
         self.UseAnsi = False
         self.UseSequentialMode = False
@@ -35,7 +35,7 @@ class FlashUtil:
         self.UseAnsi = use_ansi
         self.io.SetUseAnsi(use_ansi)
 
-    def CheckECC(self, start_page=0, end_page=-1):
+    def CheckECC(self, start_page = 0, end_page = -1):
         """TODO"""
         block = 0
         count = 0
@@ -64,7 +64,7 @@ class FlashUtil:
                         fmt_str = 'Checking ECC %d%% (Page: %3d/%3d Block: %3d/%3d)\n'
                     sys.stdout.write(fmt_str % (progress, page, end_page, block, end_block))
 
-            #if self.CheckBadBlock(block)==self.BAD_BLOCK:
+            #if self.CheckBadBlock(block) == self.BAD_BLOCK:
             #    print 'Bad Block: %d' % block
             #    print ''
 
@@ -154,12 +154,12 @@ class FlashUtil:
                 break
         print("\nChecked %d blocks and found %d errors" % (block+1, error_count))
 
-    def ReadPages(self, start_page=-1, end_page=-1, remove_oob=False, filename='', append=False, maximum=0, seq=False, raw_mode=False):
+    def ReadPages(self, start_page = -1, end_page = -1, remove_oob = False, filename = '', append = False, maximum = 0, seq = False, raw_mode = False):
         """TODO"""
         print('* ReadPages: %d ~ %d' % (start_page, end_page))
 
         if seq:
-            return self.ReadSeqPages(start_page, end_page, remove_oob, filename, append=append, maximum=maximum, raw_mode=raw_mode)
+            return self.ReadSeqPages(start_page, end_page, remove_oob, filename, append = append, maximum = maximum, raw_mode = raw_mode)
 
         if filename:
             if append:
@@ -226,7 +226,7 @@ class FlashUtil:
             return whole_data[0:maximum]
         return whole_data
 
-    def ReadSeqPages(self, start_page=-1, end_page=-1, remove_oob=False, filename='', append=False, maximum=0, raw_mode=False):
+    def ReadSeqPages(self, start_page = -1, end_page = -1, remove_oob = False, filename = '', append = False, maximum = 0, raw_mode = False):
         """TODO"""
         if filename:
             if append:
@@ -281,7 +281,7 @@ class FlashUtil:
             return whole_data[0:maximum]
         return whole_data
 
-    def AddOOB(self, filename, output_filename, jffs2=False):
+    def AddOOB(self, filename, output_filename, jffs 2= False):
         """TODO"""
         fd = open(filename, 'rb')
         wfd = open(output_filename, "wb")
@@ -311,17 +311,17 @@ class FlashUtil:
         #Write blank pages
         """
         while size>current_output_size:
-            if current_output_size% self.RawBlockSize==0:
+            if current_output_size% self.RawBlockSize == 0:
                 wfd.write("\xff"*0x200+ "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00")
             else:
                 wfd.write("\xff"*0x210)
-            current_output_size+=0x210
+            current_output_size += 0x210
         """
 
         fd.close()
         wfd.close()
 
-    def CopyPages(self, output_filename, start_page=0, end_page=-1, remove_oob=True):
+    def CopyPages(self, output_filename, start_page = 0, end_page = -1, remove_oob = True):
         """TODO"""
         if start_page == -1:
             start_page = 0
@@ -333,7 +333,7 @@ class FlashUtil:
 
         return self.CopyPagesByOffset(output_filename, start_page * self.io.RawPageSize, end, remove_oob)
 
-    def CopyPagesByOffset(self, output_filename, start=0, end=-1, remove_oob=True):
+    def CopyPagesByOffset(self, output_filename, start = 0, end = -1, remove_oob = True):
         """TODO"""
         if start == -1:
             start = 0
@@ -393,7 +393,7 @@ class FlashUtil:
 
         wfd.close()
 
-    def readData(self, start_page, length, filename=''):
+    def readData(self, start_page, length, filename = ''):
         """TODO"""
         start_block = start_page / self.io.PagePerBlock
         start_block_page = start_page % self.io.PagePerBlock
@@ -432,7 +432,7 @@ class FlashUtil:
             if block == start_block:
                 start_page += start_block_page
 
-            data += self.ReadPages(start_page, end_page, True, filename, append=append, maximum=maximum, seq=self.UseSequentialMode)
+            data += self.ReadPages(start_page, end_page, True, filename, append = append, maximum = maximum, seq = self.UseSequentialMode)
 
             maximum -= self.io.PagePerBlock*self.io.PageSize
 
@@ -498,11 +498,11 @@ class FlashUtil:
                 uimage.ParseFile(output_filename)
                 uimage.Extract()
 
-#    def IsJFFS2Block(self,block):
+#    def IsJFFS2Block(self, block):
 #        """TODO"""
 #        ret = self.CheckBadBlock(block)
 #        if ret == self.CLEAN_BLOCK:
-#            page=0
+#            page = 0
 #            block_offset = (block * self.io.RawBlockSize) + (page * self.io.RawPageSize)
 #            self.fd.seek(block_offset + self.io.PageSize)
 #            oob = self.fd.read(16)
@@ -510,7 +510,7 @@ class FlashUtil:
 #            if not oob:
 #                return 0
 #
-#            if oob[8:] == '\x85\x19\x03\x20\x08\x00\x00\x00' and oob[0:3]!='\xff\xff\xff':
+#            if oob[8:] == '\x85\x19\x03\x20\x08\x00\x00\x00' and oob[0:3] != '\xff\xff\xff':
 #                return 2
 #
 #        elif ret == self.ERROR:
@@ -578,7 +578,7 @@ class FlashUtil:
 
         return jffs2_blocks
 
-    def DumpJFFS2(self, name_prefix=''):
+    def DumpJFFS2(self, name_prefix = ''):
         """TODO"""
         i = 0
         for (start_block, end_block) in self.FindJFFS2():
@@ -588,7 +588,7 @@ class FlashUtil:
             else:
                 filename = 'JFFS2-%.2d.dmp' % i
 
-            self.ReadPages(start_block*self.io.PagePerBlock, (end_block+1)*self.io.PagePerBlock, remove_oob=True, filename=filename, seq=self.UseSequentialMode)
+            self.ReadPages(start_block*self.io.PagePerBlock, (end_block+1)*self.io.PagePerBlock, remove_oob = True, filename = filename, seq = self.UseSequentialMode)
             i += 1
 
 if __name__ == '__main__':
