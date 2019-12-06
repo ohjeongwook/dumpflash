@@ -1,5 +1,5 @@
 
-crc32table_le=[[
+crc32table_le = [[
 	0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 
 	0x076dc419L, 0x706af48fL, 0xe963a535L, 0x9e6495a3L, 
 	0x0edb8832L, 0x79dcb8a4L, 0xe0d5e91eL, 0x97d2d988L, 
@@ -63,7 +63,7 @@ crc32table_le=[[
 	0xbdbdf21cL, 0xcabac28aL, 0x53b39330L, 0x24b4a3a6L, 
 	0xbad03605L, 0xcdd70693L, 0x54de5729L, 0x23d967bfL, 
 	0xb3667a2eL, 0xc4614ab8L, 0x5d681b02L, 0x2a6f2b94L, 
-	0xb40bbe37L, 0xc30c8ea1L, 0x5a05df1bL, 0x2d02ef8dL],
+	0xb40bbe37L, 0xc30c8ea1L, 0x5a05df1bL, 0x2d02ef8dL], 
 	[
 	0x00000000L, 0x191b3141L, 0x32366282L, 0x2b2d53c3L, 
 	0x646cc504L, 0x7d77f445L, 0x565aa786L, 0x4f4196c7L, 
@@ -128,7 +128,7 @@ crc32table_le=[[
 	0x14bce1bdL, 0x0da7d0fcL, 0x268a833fL, 0x3f91b27eL, 
 	0x70d024b9L, 0x69cb15f8L, 0x42e6463bL, 0x5bfd777aL, 
 	0xdc656bb5L, 0xc57e5af4L, 0xee530937L, 0xf7483876L, 
-	0xb809aeb1L, 0xa1129ff0L, 0x8a3fcc33L, 0x9324fd72L],
+	0xb809aeb1L, 0xa1129ff0L, 0x8a3fcc33L, 0x9324fd72L], 
 	[
 	0x00000000L, 0x01c26a37L, 0x0384d46eL, 0x0246be59L, 
 	0x0709a8dcL, 0x06cbc2ebL, 0x048d7cb2L, 0x054f1685L, 
@@ -193,7 +193,7 @@ crc32table_le=[[
 	0xb5c473d0L, 0xb40619e7L, 0xb640a7beL, 0xb782cd89L, 
 	0xb2cddb0cL, 0xb30fb13bL, 0xb1490f62L, 0xb08b6555L, 
 	0xbbd72268L, 0xba15485fL, 0xb853f606L, 0xb9919c31L, 
-	0xbcde8ab4L, 0xbd1ce083L, 0xbf5a5edaL, 0xbe9834edL],
+	0xbcde8ab4L, 0xbd1ce083L, 0xbf5a5edaL, 0xbe9834edL], 
 	[
 	0x00000000L, 0xb8bc6765L, 0xaa09c88bL, 0x12b5afeeL, 
 	0x8f629757L, 0x37def032L, 0x256b5fdcL, 0x9dd738b9L, 
@@ -258,7 +258,7 @@ crc32table_le=[[
 	0x866616a7L, 0x3eda71c2L, 0x2c6fde2cL, 0x94d3b949L, 
 	0x090481f0L, 0xb1b8e695L, 0xa30d497bL, 0x1bb12e1eL, 
 	0x43d23e48L, 0xfb6e592dL, 0xe9dbf6c3L, 0x516791a6L, 
-	0xccb0a91fL, 0x740cce7aL, 0x66b96194L, 0xde0506f1L],
+	0xccb0a91fL, 0x740cce7aL, 0x66b96194L, 0xde0506f1L], 
 	[
 	0x00000000L, 0x3d6029b0L, 0x7ac05360L, 0x47a07ad0L, 
 	0xf580a6c0L, 0xc8e08f70L, 0x8f40f5a0L, 0xb220dc10L, 
@@ -323,7 +323,7 @@ crc32table_le=[[
 	0x4834505dL, 0x755479edL, 0x32f4033dL, 0x0f942a8dL, 
 	0xbdb4f69dL, 0x80d4df2dL, 0xc774a5fdL, 0xfa148c4dL, 
 	0x78441b9cL, 0x4524322cL, 0x028448fcL, 0x3fe4614cL, 
-	0x8dc4bd5cL, 0xb0a494ecL, 0xf704ee3cL, 0xca64c78cL],
+	0x8dc4bd5cL, 0xb0a494ecL, 0xf704ee3cL, 0xca64c78cL], 
 	[
 	0x00000000L, 0xcb5cd3a5L, 0x4dc8a10bL, 0x869472aeL, 
 	0x9b914216L, 0x50cd91b3L, 0xd659e31dL, 0x1d0530b8L, 
@@ -388,7 +388,7 @@ crc32table_le=[[
 	0x15921919L, 0xdececabcL, 0x585ab812L, 0x93066bb7L, 
 	0x8e035b0fL, 0x455f88aaL, 0xc3cbfa04L, 0x089729a1L, 
 	0xf9c19b74L, 0x329d48d1L, 0xb4093a7fL, 0x7f55e9daL, 
-	0x6250d962L, 0xa90c0ac7L, 0x2f987869L, 0xe4c4abccL],
+	0x6250d962L, 0xa90c0ac7L, 0x2f987869L, 0xe4c4abccL], 
 	[
 	0x00000000L, 0xa6770bb4L, 0x979f1129L, 0x31e81a9dL, 
 	0xf44f2413L, 0x52382fa7L, 0x63d0353aL, 0xc5a73e8eL, 
@@ -453,7 +453,7 @@ crc32table_le=[[
 	0x647e3ad9L, 0xc209316dL, 0xf3e12bf0L, 0x55962044L, 
 	0x90311ecaL, 0x3646157eL, 0x07ae0fe3L, 0xa1d90457L, 
 	0x579174beL, 0xf1e67f0aL, 0xc00e6597L, 0x66796e23L, 
-	0xa3de50adL, 0x05a95b19L, 0x34414184L, 0x92364a30L],
+	0xa3de50adL, 0x05a95b19L, 0x34414184L, 0x92364a30L], 
 	[
 	0x00000000L, 0xccaa009eL, 0x4225077dL, 0x8e8f07e3L, 
 	0x844a0efaL, 0x48e00e64L, 0xc66f0987L, 0x0ac50919L, 
@@ -518,41 +518,41 @@ crc32table_le=[[
 	0xff6b144aL, 0x33c114d4L, 0xbd4e1337L, 0x71e413a9L, 
 	0x7b211ab0L, 0xb78b1a2eL, 0x39041dcdL, 0xf5ae1d53L, 
 	0x2c8e0fffL, 0xe0240f61L, 0x6eab0882L, 0xa201081cL, 
-	0xa8c40105L, 0x646e019bL, 0xeae10678L, 0x264b06e6L],
+	0xa8c40105L, 0x646e019bL, 0xeae10678L, 0x264b06e6L], 
 ]
 
 
 class CRC32:
-	CRCPOLY_LE=0xedb88320
-	CRCPOLY_BE=0x04c11db7
-	CRC_LE_BITS=0
-	CRC_BE_BITS=0
+	CRCPOLY_LE = 0xedb88320
+	CRCPOLY_BE = 0x04c11db7
+	CRC_LE_BITS = 0
+	CRC_BE_BITS = 0
 
 	def set_sarwate(self):
-		self.CRC_LE_BITS=8
-		self.CRC_BE_BITS=8
+		self.CRC_LE_BITS = 8
+		self.CRC_BE_BITS = 8
 
-	def crc32_le_generic(self,crc,buffer,tab,polynomial):
-		if self.CRC_LE_BITS==8:
+	def crc32_le_generic(self, crc, buffer, tab, polynomial):
+		if self.CRC_LE_BITS == 8:
 			for ch in buffer:
 				crc ^= ord(ch)
 				crc = (crc>>8) ^ tab[0][crc&255];
 			return crc
 
-	def crc32_le(self,crc,buffer):
-		return self.crc32_le_generic(crc,buffer,crc32table_le,self.CRCPOLY_LE)
+	def crc32_le(self, crc, buffer):
+		return self.crc32_le_generic(crc, buffer, crc32table_le, self.CRCPOLY_LE)
 
-	def calc(self,data):
-		return self.crc32_le(0,data)
+	def calc(self, data):
+		return self.crc32_le(0, data)
 
-	def calc_file(self,filename):
-		fd=open(filename,'rb')
-		data=fd.read()
+	def calc_file(self, filename):
+		fd = open(filename, 'rb')
+		data = fd.read()
 		fd.close()
 
 		print "%x" % self.calc(data)
 
-if __name__=='__main__':
-	crc32=CRC32()
+if __name__ == '__main__':
+	crc3 2= CRC32()
 	crc32.set_sarwate()
 	crc32.calc_file('payload.gz')
