@@ -1,3 +1,6 @@
 *.pyc
 *.dmp
 *.un~
+*.bak
+*.bin
+

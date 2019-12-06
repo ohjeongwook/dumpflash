@@ -1,12 +1,13 @@
+"""TODO"""
+# pylint: disable=invalid-name
+# pylint: disable=line-too-long
 from array import array as Array
-import re
 import time
+import struct
 import sys
-import pprint
 import traceback
-from pyftdi.ftdi import *
-from DumpUBoot import *
-from ECC import *
+from pyftdi import ftdi
+import ECC
 
 class NandIO:
     ADR_CE = 0x10
@@ -14,25 +15,23 @@ class NandIO:
     ADR_CL = 0x40
     ADR_AL = 0x80
 
-    NAND_CMD_READID = 0x90
-
-    NAND_CMD_READ 0= 0
-    NAND_CMD_READ 1= 1
+    NAND_CMD_READ0 = 0
+    NAND_CMD_READ1 = 1
     NAND_CMD_RNDOUT = 5
     NAND_CMD_PAGEPROG = 0x10
     NAND_CMD_READOOB = 0x50
-    NAND_CMD_ERASE 1= 0x60
+    NAND_CMD_ERASE1 = 0x60
     NAND_CMD_STATUS = 0x70
     NAND_CMD_STATUS_MULTI = 0x71
     NAND_CMD_SEQIN = 0x80
     NAND_CMD_RNDIN = 0x85
     NAND_CMD_READID = 0x90
-    NAND_CMD_ERASE 2= 0xd0
+    NAND_CMD_ERASE2 = 0xd0
     NAND_CMD_PARAM = 0xec
     NAND_CMD_RESET = 0xff
     NAND_CMD_LOCK = 0x2a
-    NAND_CMD_UNLOCK 1= 0x23
-    NAND_CMD_UNLOCK 2= 0x24
+    NAND_CMD_UNLOCK1 = 0x23
+    NAND_CMD_UNLOCK2 = 0x24
     NAND_CMD_READSTART = 0x30
     NAND_CMD_RNDOUTSTART = 0xE0
     NAND_CMD_CACHEDPROG = 0x15
@@ -48,78 +47,79 @@ class NandIO:
 
     LP_Options = 1
     DeviceDescriptions = [
-        ["NAND 1MiB 5V 8-bit",        0x6e, 256, 1, 0x1000, 0, 3], 
-        ["NAND 2MiB 5V 8-bit",        0x64, 256, 2, 0x1000, 0, 3], 
-        ["NAND 4MiB 5V 8-bit",        0x6b, 512, 4, 0x2000, 0, 3], 
-        ["NAND 1MiB 3, 3V 8-bit",    0xe8, 256, 1, 0x1000, 0, 3], 
-        ["NAND 1MiB 3, 3V 8-bit",    0xec, 256, 1, 0x1000, 0, 3], 
-        ["NAND 2MiB 3, 3V 8-bit",    0xea, 256, 2, 0x1000, 0, 3], 
+        # name, ID, PageSize, ChipSizeMb, EraseSize, Options, AddrCycles
+        ["NAND 1MiB 5V 8-bit",        0x6e, 256, 1, 0x1000, 0, 3],
+        ["NAND 2MiB 5V 8-bit",        0x64, 256, 2, 0x1000, 0, 3],
+        ["NAND 4MiB 5V 8-bit",        0x6b, 512, 4, 0x2000, 0, 3],
+        ["NAND 1MiB 3,3V 8-bit",    0xe8, 256, 1, 0x1000, 0, 3],
+        ["NAND 1MiB 3,3V 8-bit",    0xec, 256, 1, 0x1000, 0, 3],
+        ["NAND 2MiB 3,3V 8-bit",    0xea, 256, 2, 0x1000, 0, 3],
 
-        ["NAND 4MiB 3, 3V 8-bit",    0xe3, 512, 4, 0x2000, 0, 3], 
-        ["NAND 4MiB 3, 3V 8-bit",    0xe5, 512, 4, 0x2000, 0, 3], 
-        ["NAND 8MiB 3, 3V 8-bit",    0xd6, 512, 8, 0x2000, 0, 3], 
-        ["NAND 8MiB 1, 8V 8-bit",    0x39, 512, 8, 0x2000, 0, 3], 
-        ["NAND 8MiB 3, 3V 8-bit",    0xe6, 512, 8, 0x2000, 0, 3], 
-        ["NAND 16MiB 1, 8V 8-bit",    0x33, 512, 16, 0x4000, 0, 3], 
-        ["NAND 16MiB 3, 3V 8-bit",    0x73, 512, 16, 0x4000, 0, 3], 
-        ["NAND 32MiB 1, 8V 8-bit",    0x35, 512, 32, 0x4000, 0, 3], 
-        ["NAND 32MiB 3, 3V 8-bit",    0x75, 512, 32, 0x4000, 0, 3], 
-        ["NAND 64MiB 1, 8V 8-bit",    0x36, 512, 64, 0x4000, 0, 4], 
-        ["NAND 64MiB 3, 3V 8-bit",    0x76, 512, 64, 0x4000, 0, 4], 
-        ["NAND 128MiB 1, 8V 8-bit",    0x78, 512, 128, 0x4000, 0, 3], 
-        ["NAND 128MiB 1, 8V 8-bit",    0x39, 512, 128, 0x4000, 0, 3], 
-        ["NAND 128MiB 3, 3V 8-bit",    0x79, 512, 128, 0x4000, 0, 4], 
-        ["NAND 256MiB 3, 3V 8-bit",    0x71, 512, 256, 0x4000, 0, 4], 
+        ["NAND 4MiB 3,3V 8-bit",    0xe3, 512, 4, 0x2000, 0, 3],
+        ["NAND 4MiB 3,3V 8-bit",    0xe5, 512, 4, 0x2000, 0, 3],
+        ["NAND 8MiB 3,3V 8-bit",    0xd6, 512, 8, 0x2000, 0, 3],
+        ["NAND 8MiB 1,8V 8-bit",    0x39, 512, 8, 0x2000, 0, 3],
+        ["NAND 8MiB 3,3V 8-bit",    0xe6, 512, 8, 0x2000, 0, 3],
+        ["NAND 16MiB 1,8V 8-bit",    0x33, 512, 16, 0x4000, 0, 3],
+        ["NAND 16MiB 3,3V 8-bit",    0x73, 512, 16, 0x4000, 0, 3],
+        ["NAND 32MiB 1,8V 8-bit",    0x35, 512, 32, 0x4000, 0, 3],
+        ["NAND 32MiB 3,3V 8-bit",    0x75, 512, 32, 0x4000, 0, 3],
+        ["NAND 64MiB 1,8V 8-bit",    0x36, 512, 64, 0x4000, 0, 4],
+        ["NAND 64MiB 3,3V 8-bit",    0x76, 512, 64, 0x4000, 0, 4],
+        ["NAND 128MiB 1,8V 8-bit",    0x78, 512, 128, 0x4000, 0, 3],
+        ["NAND 128MiB 1,8V 8-bit",    0x39, 512, 128, 0x4000, 0, 3],
+        ["NAND 128MiB 3,3V 8-bit",    0x79, 512, 128, 0x4000, 0, 4],
+        ["NAND 256MiB 3,3V 8-bit",    0x71, 512, 256, 0x4000, 0, 4],
 
         # 512 Megabit
-        ["NAND 64MiB 1, 8V 8-bit",    0xA2, 0,  64, 0, LP_Options, 4], 
-        ["NAND 64MiB 1, 8V 8-bit",    0xA0, 0,  64, 0, LP_Options, 4], 
-        ["NAND 64MiB 3, 3V 8-bit",    0xF2, 0,  64, 0, LP_Options, 4], 
-        ["NAND 64MiB 3, 3V 8-bit",    0xD0, 0,  64, 0, LP_Options, 4], 
-        ["NAND 64MiB 3, 3V 8-bit",    0xF0, 0,  64, 0, LP_Options, 4], 
+        ["NAND 64MiB 1,8V 8-bit",    0xA2, 0,  64, 0, LP_Options, 4],
+        ["NAND 64MiB 1,8V 8-bit",    0xA0, 0,  64, 0, LP_Options, 4],
+        ["NAND 64MiB 3,3V 8-bit",    0xF2, 0,  64, 0, LP_Options, 4],
+        ["NAND 64MiB 3,3V 8-bit",    0xD0, 0,  64, 0, LP_Options, 4],
+        ["NAND 64MiB 3,3V 8-bit",    0xF0, 0,  64, 0, LP_Options, 4],
 
         # 1 Gigabit
-        ["NAND 128MiB 1, 8V 8-bit",    0xA1, 0, 128, 0, LP_Options, 4], 
-        ["NAND 128MiB 3, 3V 8-bit",    0xF1, 0, 128, 0, LP_Options, 4], 
-        ["NAND 128MiB 3, 3V 8-bit",    0xD1, 0, 128, 0, LP_Options, 4], 
+        ["NAND 128MiB 1,8V 8-bit",    0xA1, 0, 128, 0, LP_Options, 4],
+        ["NAND 128MiB 3,3V 8-bit",    0xF1, 0, 128, 0, LP_Options, 4],
+        ["NAND 128MiB 3,3V 8-bit",    0xD1, 0, 128, 0, LP_Options, 4],
 
         # 2 Gigabit
-        ["NAND 256MiB 1, 8V 8-bit",    0xAA, 0, 256, 0, LP_Options, 5], 
-        ["NAND 256MiB 3, 3V 8-bit",    0xDA, 0, 256, 0, LP_Options, 5], 
+        ["NAND 256MiB 1,8V 8-bit",    0xAA, 0, 256, 0, LP_Options, 5],
+        ["NAND 256MiB 3,3V 8-bit",    0xDA, 0, 256, 0, LP_Options, 5],
 
         # 4 Gigabit
-        ["NAND 512MiB 1, 8V 8-bit",    0xAC, 0, 512, 0, LP_Options, 5], 
-        ["NAND 512MiB 3, 3V 8-bit",    0xDC, 0, 512, 0, LP_Options, 5], 
+        ["NAND 512MiB 1,8V 8-bit",    0xAC, 0, 512, 0, LP_Options, 5],
+        ["NAND 512MiB 3,3V 8-bit",    0xDC, 0, 512, 0, LP_Options, 5],
 
         # 8 Gigabit
-        ["NAND 1GiB 1, 8V 8-bit",    0xA3, 0, 1024, 0, LP_Options, 5], 
-        ["NAND 1GiB 3, 3V 8-bit",    0xD3, 0, 1024, 0, LP_Options, 5], 
+        ["NAND 1GiB 1,8V 8-bit",    0xA3, 0, 1024, 0, LP_Options, 5],
+        ["NAND 1GiB 3,3V 8-bit",    0xD3, 0, 1024, 0, LP_Options, 5],
 
         # 16 Gigabit
-        ["NAND 2GiB 1, 8V 8-bit",    0xA5, 0, 2048, 0, LP_Options, 5], 
-        ["NAND 2GiB 3, 3V 8-bit",    0xD5, 0, 2048, 0, LP_Options, 5], 
+        ["NAND 2GiB 1,8V 8-bit",    0xA5, 0, 2048, 0, LP_Options, 5],
+        ["NAND 2GiB 3,3V 8-bit",    0xD5, 0, 2048, 0, LP_Options, 5],
 
         # 32 Gigabit
-        ["NAND 4GiB 1, 8V 8-bit",    0xA7, 0, 4096, 0, LP_Options, 5], 
-        ["NAND 4GiB 3, 3V 8-bit",    0xD7, 0, 4096, 0, LP_Options, 5], 
+        ["NAND 4GiB 1,8V 8-bit",    0xA7, 0, 4096, 0, LP_Options, 5],
+        ["NAND 4GiB 3,3V 8-bit",    0xD7, 0, 4096, 0, LP_Options, 5],
+        ["NAND 4GiB 3,3V 8-bit",    0x2C, 0, 4096, 0, LP_Options, 5],
 
         # 64 Gigabit
-        ["NAND 8GiB 1, 8V 8-bit",    0xAE, 0, 8192, 0, LP_Options, 5], 
-        ["NAND 8GiB 3, 3V 8-bit",    0xDE, 0, 8192, 0, LP_Options, 5], 
+        ["NAND 8GiB 1,8V 8-bit",    0xAE, 0, 8192, 0, LP_Options, 5],
+        ["NAND 8GiB 3,3V 8-bit",    0xDE, 0, 8192, 0, LP_Options, 5],
 
         # 128 Gigabit
-        ["NAND 16GiB 1, 8V 8-bit",    0x1A, 0, 16384, 0, LP_Options, 5], 
-        ["NAND 16GiB 3, 3V 8-bit",    0x3A, 0, 16384, 0, LP_Options, 5], 
+        ["NAND 16GiB 1,8V 8-bit",    0x1A, 0, 16384, 0, LP_Options, 5],
+        ["NAND 16GiB 3,3V 8-bit",    0x3A, 0, 16384, 0, LP_Options, 5],
 
         # 256 Gigabit
-        ["NAND 32GiB 1, 8V 8-bit",    0x1C, 0, 32768, 0, LP_Options, 6], 
-        ["NAND 32GiB 3, 3V 8-bit",    0x3C, 0, 32768, 0, LP_Options, 6], 
+        ["NAND 32GiB 1,8V 8-bit",    0x1C, 0, 32768, 0, LP_Options, 6],
+        ["NAND 32GiB 3,3V 8-bit",    0x3C, 0, 32768, 0, LP_Options, 6],
 
         # 512 Gigabit
-        ["NAND 64GiB 1, 8V 8-bit",    0x1E, 0, 65536, 0, LP_Options, 6], 
-        ["NAND 64GiB 3, 3V 8-bit",    0x3E, 0, 65536, 0, LP_Options, 6], 
+        ["NAND 64GiB 1,8V 8-bit",    0x1E, 0, 65536, 0, LP_Options, 6],
+        ["NAND 64GiB 3,3V 8-bit",    0x3E, 0, 65536, 0, LP_Options, 6],
 
-        #["NAND 4MiB 3, 3V 8-bit",    0xd5, 512, 4, 0x2000, 0, 3]
     ]
 
     Debug = 0
@@ -136,70 +136,76 @@ class NandIO:
     RemoveOOB = False
     UseSequentialMode = False
 
-    def __init__(self, do_slow = False):
+    def __init__(self, do_slow=False):
         self.Slow = do_slow
         self.UseAnsi = False
-        self.Ftdi = Ftdi()
+        self.Ftdi = ftdi.Ftdi()
         try:
-            self.Ftdi.open(0x0403, 0x6010, interface = 1)
+            self.Ftdi.open(0x0403, 0x6010, interface=1)
         except:
-            traceback.print_exc(file = sys.stdout)
+            traceback.print_exc(file=sys.stdout)
             return
 
         self.Ftdi.set_bitmode(0, self.Ftdi.BITMODE_MCU)
 
-        if (self.Slow == True):
+        if self.Slow:
             # Clock FTDI chip at 12MHz instead of 60MHz
-            self.Ftdi.write_data(Array('B', [Ftdi.ENABLE_CLK_DIV5]))
+            self.Ftdi.write_data(Array('B', [ftdi.Ftdi.ENABLE_CLK_DIV5]))
         else:
-            self.Ftdi.write_data(Array('B', [Ftdi.DISABLE_CLK_DIV5]))
+            self.Ftdi.write_data(Array('B', [ftdi.Ftdi.DISABLE_CLK_DIV5]))
 
-        self.Ftdi.set_latency_timer(1)
+        self.Ftdi.set_latency_timer(self.Ftdi.LATENCY_MIN)
         self.Ftdi.purge_buffers()
-        self.Ftdi.write_data(Array('B', [Ftdi.SET_BITS_HIGH, 0x0, 0x1]))
+        self.Ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x0, 0x1]))
         self.WaitReady()
         self.GetID()
-        
+
     def IsInitialized(self):
+        """TODO"""
         return self.Identified
 
     def SetUseAnsi(self, use_ansi):
+        """TODO"""
         self.UseAnsi = use_ansi
 
     def WaitReady(self):
+        """TODO"""
         while 1:
-            self.Ftdi.write_data(Array('B', [Ftdi.GET_BITS_HIGH]))
+            self.Ftdi.write_data(Array('B', [ftdi.Ftdi.GET_BITS_HIGH]))
             data = self.Ftdi.read_data_bytes(1)
-            if data[0]& 2= =0x2:
+            if not data:
+                raise Exception('FTDI device Not ready. Try restarting it.')
+            if data[0]&2 == 0x2:
                 return
-            else:
-                if self.Debug>0:
-                    print 'Not Ready', data
+            if self.Debug > 0:
+                print('Not Ready', data)
         return
 
     def nandRead(self, cl, al, count):
+        """TODO"""
         cmds = []
         cmd_type = 0
         if cl == 1:
-            cmd_type| = self.ADR_CL
+            cmd_type |= self.ADR_CL
         if al == 1:
-            cmd_type| = self.ADR_AL
+            cmd_type |= self.ADR_AL
 
-        cmds += [Ftdi.READ_EXTENDED, cmd_type, 0]
+        cmds += [ftdi.Ftdi.READ_EXTENDED, cmd_type, 0]
 
-        for i in range(1, count, 1):
-            cmds += [Ftdi.READ_SHORT, 0]
+        for _ in range(1, count, 1):
+            cmds += [ftdi.Ftdi.READ_SHORT, 0]
 
-        cmds.append(Ftdi.SEND_IMMEDIATE)
+        cmds.append(ftdi.Ftdi.SEND_IMMEDIATE)
         self.Ftdi.write_data(Array('B', cmds))
-        if (self.getSlow()):
+        if self.getSlow():
             data = self.Ftdi.read_data_bytes(count*2)
             data = data[0:-1:2]
         else:
             data = self.Ftdi.read_data_bytes(count)
-        return data.tolist()
+        return data.tobytes()
 
     def nandWrite(self, cl, al, data):
+        """TODO"""
         cmds = []
         cmd_type = 0
         if cl == 1:
@@ -209,46 +215,50 @@ class NandIO:
         if not self.WriteProtect:
             cmd_type |= self.ADR_WP
 
-        cmds += [Ftdi.WRITE_EXTENDED, cmd_type, 0, ord(data[0])]
+        cmds += [ftdi.Ftdi.WRITE_EXTENDED, cmd_type, 0, ord(data[0])]
         for i in range(1, len(data), 1):
             #if i == 256:
-            #    cmds += [Ftdi.WRITE_SHORT, 0, ord(data[i])]
-            cmds += [Ftdi.WRITE_SHORT, 0, ord(data[i])]
+            #    cmds+=[Ftdi.WRITE_SHORT, 0, ord(data[i])]
+            cmds += [ftdi.Ftdi.WRITE_SHORT, 0, ord(data[i])]
         self.Ftdi.write_data(Array('B', cmds))
 
     def sendCmd(self, cmd):
+        """TODO"""
         self.nandWrite(1, 0, chr(cmd))
 
     def sendAddr(self, addr, count):
+        """TODO"""
         data = ''
 
-        for i in range(0, count, 1):
+        for _ in range(0, count, 1):
             data += chr(addr & 0xff)
             addr = addr>>8
 
         self.nandWrite(0, 1, data)
 
     def Status(self):
+        """TODO"""
         self.sendCmd(0x70)
         status = self.readFlashData(1)[0]
         return status
 
     def readFlashData(self, count):
+        """TODO"""
         return self.nandRead(0, 0, count)
 
     def writeData(self, data):
+        """TODO"""
         return self.nandWrite(0, 0, data)
 
     def getSlow(self):
+        """TODO"""
         return self.Slow
 
     def GetID(self):
-        self.sendCmd(self.NAND_CMD_RESET)
-        time.sleep(0.1)
-
+        """TODO"""
         self.sendCmd(self.NAND_CMD_READID)
         self.sendAddr(0, 1)
-        id = self.readFlashData(8)
+        flash_identifiers = self.readFlashData(8)
 
         self.Identified = False
         self.Name = ''
@@ -259,13 +269,12 @@ class NandIO:
         self.Options = 0
         self.AddrCycles = 0
 
-        device_found = False
         for device_description in self.DeviceDescriptions:
-            if device_description[1] == id[1]:
+            if device_description[1] == flash_identifiers[0]:
                 (self.Name, self.ID, self.PageSize, self.ChipSizeMB, self.EraseSize, self.Options, self.AddrCycles) = device_description
                 self.Identified = True
                 break
-                
+
         if not self.Identified:
             return
 
@@ -274,96 +283,92 @@ class NandIO:
         self.sendAddr(0x20, 1)
         onfitmp = self.readFlashData(4)
 
-        onfi = False
-        if onfitmp[0] == 0x4F and onfitmp[1] == 0x4E and onfitmp[2] == 0x46 and onfitmp[3] == 0x49:
-            onfi = True
+        onfi = (onfitmp == [0x4F, 0x4E, 0x46, 0x49])
 
         if onfi:
             self.sendCmd(self.NAND_CMD_ONFI)
             self.sendAddr(0, 1)
             self.WaitReady()
             onfi_data = self.readFlashData(0x100)
-            if onfi_data[0] == 0x4F and onfi_data[1] == 0x4E and onfi_data[2] == 0x46 and onfi_data[3] == 0x49:
-                onfi = True
-            else:
-                onfi = False
+            onfi = onfi_data[0:4] == [0x4F, 0x4E, 0x46, 0x49]
 
-           if id[0] == 0x98:
-            self.Manufacturer = "Toshiba"
-        elif id[0] == 0xec:
-            self.Manufacturer = "Samsung"
-        elif id[0] == 0x04:
-            self.Manufacturer = "Fujitsu"
-        elif id[0] == 0x8f:
-            self.Manufacturer = "National Semiconductors"
-        elif id[0] == 0x07:
-            self.Manufacturer = "Renesas"
-        elif id[0] == 0x20:
-            self.Manufacturer = "ST Micro"
-        elif id[0] == 0xad:
-            self.Manufacturer = "Hynix"
-        elif id[0] == 0x2c:
-            self.Manufacturer = "Micron"
-        elif id[0] == 0x01:
-            self.Manufacturer = "AMD"
-        elif id[0] == 0xc2:
-            self.Manufacturer = "Macronix"
+        if flash_identifiers[0] == 0x98:
+            self.Manufacturer = 'Toshiba'
+        elif flash_identifiers[0] == 0xec:
+            self.Manufacturer = 'Samsung'
+        elif flash_identifiers[0] == 0x04:
+            self.Manufacturer = 'Fujitsu'
+        elif flash_identifiers[0] == 0x8f:
+            self.Manufacturer = 'National Semiconductors'
+        elif flash_identifiers[0] == 0x07:
+            self.Manufacturer = 'Renesas'
+        elif flash_identifiers[0] == 0x20:
+            self.Manufacturer = 'ST Micro'
+        elif flash_identifiers[0] == 0xad:
+            self.Manufacturer = 'Hynix'
+        elif flash_identifiers[0] == 0x2c:
+            self.Manufacturer = 'Micron'
+        elif flash_identifiers[0] == 0x01:
+            self.Manufacturer = 'AMD'
+        elif flash_identifiers[0] == 0xc2:
+            self.Manufacturer = 'Macronix'
         else:
             self.Manufacturer = 'Unknown'
 
 
         idstr = ''
-        for idbyte in id:
+        for idbyte in flash_identifiers:
             idstr += "%X" % idbyte
-        if (idstr[0:4] == idstr[-4:]):
+        if idstr[0:4] == idstr[-4:]:
             idstr = idstr[:-4]
-            if (idstr[0:2] == idstr[-2:]):
+            if idstr[0:2] == idstr[-2:]:
                 idstr = idstr[:-2]
         self.IDString = idstr
-        self.IDLength = (len(idstr) / 2)
-        self.BitsPerCell = self.GetBitsPerCell(id[2])
+        self.IDLength = int(len(idstr) / 2)
+        self.BitsPerCell = self.GetBitsPerCell(flash_identifiers[2])
         if self.PageSize == 0:
-            extid = id[3]
+            extid = flash_identifiers[3]
             if ((self.IDLength == 6) and (self.Manufacturer == "Samsung") and (self.BitsPerCell > 1)):
                 self.Pagesize = 2048 << (extid & 0x03)
                 extid >>= 2
                 if (((extid >> 2) & 0x04) | (extid & 0x03)) == 1:
-                                flash.oobsize = 128
+                    self.OOBSize = 128
                 if (((extid >> 2) & 0x04) | (extid & 0x03)) == 2:
-                                flash.oobsize = 218
-
+                    self.OOBSize = 218
                 if (((extid >> 2) & 0x04) | (extid & 0x03)) == 3:
-                                flash.oobsize = 400
+                    self.OOBSize = 400
                 if (((extid >> 2) & 0x04) | (extid & 0x03)) == 4:
-                                flash.oobsize = 436
+                    self.OOBSize = 436
                 if (((extid >> 2) & 0x04) | (extid & 0x03)) == 5:
-                                flash.oobsize = 512
+                    self.OOBSize = 512
                 if (((extid >> 2) & 0x04) | (extid & 0x03)) == 6:
-                                flash.oobsize = 640
+                    self.OOBSize = 640
                 else:
-                                flash.oobsize = 1024
+                    self.OOBSize = 1024
                 extid >>= 2
                 self.EraseSize = (128 * 1024) << (((extid >> 1) & 0x04) | (extid & 0x03))
-            elif ((self.IDLength == 6) and (self.Manufacturer == "Hynix") and (self.BitsPerCell > 1)):
+            elif ((self.IDLength == 6) and (self.Manufacturer == 'Hynix') and (self.BitsPerCell > 1)):
                 self.PageSize = 2048 << (extid & 0x03)
                 extid >>= 2
-                if ((((extid >> 2) & 0x04) | (extid & 0x03)) == 0):
+                if (((extid >> 2) & 0x04) | (extid & 0x03)) == 0:
                     self.OOBSize = 128
-                elif ((((extid >> 2) & 0x04) | (extid & 0x03)) == 1):
+                elif (((extid >> 2) & 0x04) | (extid & 0x03)) == 1:
                     self.OOBSize = 224
-                elif ((((extid >> 2) & 0x04) | (extid & 0x03)) == 2):
+                elif (((extid >> 2) & 0x04) | (extid & 0x03)) == 2:
                     self.OOBSize = 448
-                elif ((((extid >> 2) & 0x04) | (extid & 0x03)) == 3):
+                elif (((extid >> 2) & 0x04) | (extid & 0x03)) == 3:
                     self.OOBSize = 64
-                elif ((((extid >> 2) & 0x04) | (extid & 0x03)) == 4):
+                elif (((extid >> 2) & 0x04) | (extid & 0x03)) == 4:
                     self.OOBSize = 32
-                elif ((((extid >> 2) & 0x04) | (extid & 0x03)) == 5):
+                elif (((extid >> 2) & 0x04) | (extid & 0x03)) == 5:
                     self.OOBSize = 16
                 else:
                     self.OOBSize = 640
                 tmp = ((extid >> 1) & 0x04) | (extid & 0x03)
-                if (tmp < 0x03): self.EraseSize = (128 * 1024) << tmp
-                elif (tmp == 0x03): self.EraseSize = 768 * 1024
+                if tmp < 0x03:
+                    self.EraseSize = (128 * 1024) << tmp
+                elif tmp == 0x03:
+                    self.EraseSize = 768 * 1024
                 else: self.EraseSize = (64 * 1024) << tmp
             else:
                 self.PageSize = 1024 << (extid & 0x03)
@@ -371,46 +376,50 @@ class NandIO:
                 self.OOBSize = (8 << (extid & 0x01)) * (self.PageSize >> 9)
                 extid >>= 2
                 self.EraseSize = (64 * 1024) << (extid & 0x03)
-                if ((self.IDLength >= 6) and (self.Manufacturer == "Toshiba") and (self.BitsPerCell > 1) and ((id[5] & 0x7) == 0x6) and not (id[4] & 0x80)): Self.OOBSize = 32 * Self.PageSize >> 9
+                if ((self.IDLength >= 6) and (self.Manufacturer == "Toshiba") and (self.BitsPerCell > 1) and ((flash_identifiers[5] & 0x7) == 0x6) and not flash_identifiers[4] & 0x80):
+                    self.OOBSize = 32 * self.PageSize >> 9
         else:
-            self.OOBSize = self.PageSize / 32
+            self.OOBSize = int(self.PageSize / 32)
 
-        if self.PageSize>0:
-            self.PageCount = (self.ChipSizeMB*1024*1024)/self.PageSize
+        if self.PageSize > 0:
+            self.PageCount = int(self.ChipSizeMB*1024*1024/self.PageSize)
         self.RawPageSize = self.PageSize+self.OOBSize
         self.BlockSize = self.EraseSize
-        self.BlockCount = (self.ChipSizeMB*1024*1024)/self.BlockSize
-        self.PagePerBlock = self.PageCount/self.BlockCount
+        self.BlockCount = int((self.ChipSizeMB*1024*1024)/self.BlockSize)
+        self.PagePerBlock = int(self.PageCount/self.BlockCount)
         self.RawBlockSize = self.PagePerBlock*(self.PageSize + self.OOBSize)
         return True
 
     def GetBitsPerCell(self, cellinfo):
-            bits = cellinfo & self.NAND_CI_CELLTYPE_MSK
-            bits >>= self.NAND_CI_CELLTYPE_SHIFT
-            return bits+1
+        """TODO"""
+        bits = cellinfo & self.NAND_CI_CELLTYPE_MSK
+        bits >>= self.NAND_CI_CELLTYPE_SHIFT
+        return bits+1
 
     def DumpInfo(self):
-        print 'Full ID:\t', self.IDString
-        print 'ID Length:\t', self.IDLength
-        print 'Name:\t\t', self.Name
-        print 'ID:\t\t0x%x' % self.ID
-        print 'Page size:\t0x%x' % self.PageSize
-        print 'OOB size:\t0x%x' % self.OOBSize
-        print 'Page count:\t0x%x' % self.PageCount
-        print 'Size:\t\t0x%x' % self.ChipSizeMB
-        print 'Erase size:\t0x%x' % self.EraseSize
-        print 'Block count:\t', self.BlockCount
-        print 'Options:\t', self.Options
-        print 'Address cycle:\t', self.AddrCycles
-        print 'Bits per Cell:\t', self.BitsPerCell
-        print 'Manufacturer:\t', self.Manufacturer
-        print ''
+        """TODO"""
+        print('Full ID:\t', self.IDString)
+        print('ID Length:\t', self.IDLength)
+        print('Name:\t\t', self.Name)
+        print('ID:\t\t0x%x' % self.ID)
+        print('Page size:\t 0x{0:x}({0:d})'.format(self.PageSize))
+        print('OOB size:\t0x{0:x} ({0:d})'.format(self.OOBSize))
+        print('Page count:\t0x%x' % self.PageCount)
+        print('Size:\t\t0x%x' % self.ChipSizeMB)
+        print('Erase size:\t0x%x' % self.EraseSize)
+        print('Block count:\t', self.BlockCount)
+        print('Options:\t', self.Options)
+        print('Address cycle:\t', self.AddrCycles)
+        print('Bits per Cell:\t', self.BitsPerCell)
+        print('Manufacturer:\t', self.Manufacturer)
+        print('')
 
     def CheckBadBlocks(self):
+        """TODO"""
         bad_blocks = {}
-        end_page = self.PageCount
+#        end_page = self.PageCount
 
-        if self.PageCount%self.PagePerBlock>0.0:
+        if self.PageCount%self.PagePerBlock > 0.0:
             self.BlockCount += 1
 
         curblock = 1
@@ -425,50 +434,52 @@ class NandIO:
                 oob = self.ReadOOB(page+pageoff)
 
                 if oob[5] != '\xff':
-                    print 'Bad block found:', block
+                    print('Bad block found:', block)
                     bad_blocks[page] = 1
                     break
-        print 'Checked %d blocks and found %d bad blocks' % ( block+1, len(bad_blocks))
+        print('Checked %d blocks and found %d bad blocks' % (block+1, len(bad_blocks)))
         return bad_blocks
 
     def ReadOOB(self, pageno):
-        bytes = []
+        """TODO"""
+        bytes_to_send = []
         if self.Options&self.LP_Options:
             self.sendCmd(self.NAND_CMD_READ0)
-            self.sendAddr((pageno<<16L), self.AddrCycles)
+            self.sendAddr((pageno<<16), self.AddrCycles)
             self.sendCmd(self.NAND_CMD_READSTART)
             self.WaitReady()
-            bytes += self.readFlashData(self.OOBSize)
+            bytes_to_send += self.readFlashData(self.OOBSize)
         else:
             self.sendCmd(self.NAND_CMD_READOOB)
             self.WaitReady()
             self.sendAddr(pageno<<8, self.AddrCycles)
             self.WaitReady()
-            bytes += self.readFlashData(self.OOBSize)
+            bytes_to_send += self.readFlashData(self.OOBSize)
 
         data = ''
 
-        for ch in bytes:
+        for ch in bytes_to_send:
             data += chr(ch)
         return data
 
-    def ReadPage(self, pageno, remove_oob = False):
-        bytes = []
+    def ReadPage(self, pageno, remove_oob=False):
+        """TODO"""
+        bytes_to_read = bytearray()
 
         if self.Options&self.LP_Options:
             self.sendCmd(self.NAND_CMD_READ0)
             self.sendAddr(pageno<<16, self.AddrCycles)
             self.sendCmd(self.NAND_CMD_READSTART)
-            if self.PageSize>0x1000:
-                len = self.PageSize+self.OOBSize
-                while len>0:
+            if self.PageSize > 0x1000:
+                length = self.PageSize+self.OOBSize
+                while length > 0:
                     read_len = 0x1000
-                    if len<0x1000:
-                        read_len = len
-                    bytes += self.readFlashData(read_len)
-                    len -= 0x1000
+                    if length < 0x1000:
+                        read_len = length
+                    bytes_to_read += self.readFlashData(read_len)
+                    length -= 0x1000
             else:
-                bytes = self.readFlashData(self.PageSize+self.OOBSize)
+                bytes_to_read = self.readFlashData(self.PageSize+self.OOBSize)
 
             #TODO: Implement remove_oob
         else:
@@ -476,28 +487,25 @@ class NandIO:
             self.WaitReady()
             self.sendAddr(pageno<<8, self.AddrCycles)
             self.WaitReady()
-            bytes += self.readFlashData(self.PageSize/2)
+            bytes_to_read += self.readFlashData(self.PageSize/2)
 
             self.sendCmd(self.NAND_CMD_READ1)
             self.WaitReady()
             self.sendAddr(pageno<<8, self.AddrCycles)
             self.WaitReady()
-            bytes += self.readFlashData(self.PageSize/2)
+            bytes_to_read += self.readFlashData(self.PageSize/2)
 
             if not remove_oob:
                 self.sendCmd(self.NAND_CMD_READOOB)
                 self.WaitReady()
                 self.sendAddr(pageno<<8, self.AddrCycles)
                 self.WaitReady()
-                bytes += self.readFlashData(self.OOBSize)
+                bytes_to_read += self.readFlashData(self.OOBSize)
 
-        data = ''
+        return bytes_to_read
 
-        for ch in bytes:
-            data += chr(ch)
-        return data
-
-    def ReadSeq(self, pageno, remove_oob = False, raw_mode = False):
+    def ReadSeq(self, pageno, remove_oob=False, raw_mode=False):
+        """TODO"""
         page = []
         self.sendCmd(self.NAND_CMD_READ0)
         self.WaitReady()
@@ -509,7 +517,7 @@ class NandIO:
         for i in range(0, self.PagePerBlock, 1):
             page_data = self.readFlashData(self.RawPageSize)
 
-            if i == 0 or i == 1:
+            if i in (0, 1):
                 if page_data[self.PageSize+5] != 0xff:
                     bad_block = True
 
@@ -520,13 +528,13 @@ class NandIO:
 
             self.WaitReady()
 
-        self.Ftdi.write_data(Array('B', [Ftdi.SET_BITS_HIGH, 0x1, 0x1]))
-        self.Ftdi.write_data(Array('B', [Ftdi.SET_BITS_HIGH, 0x0, 0x1]))
+        self.Ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x1, 0x1]))
+        self.Ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x0, 0x1]))
 
         data = ''
 
         if bad_block and not raw_mode:
-            print '\nSkipping bad block at %d' % (pageno/self.PagePerBlock)
+            print('\nSkipping bad block at %d' % (pageno/self.PagePerBlock))
         else:
             for ch in page:
                 data += chr(ch)
@@ -534,17 +542,19 @@ class NandIO:
         return data
 
     def EraseBlockByPage(self, pageno):
+        """TODO"""
         self.WriteProtect = False
-        self.sendCmd(self.NAND_CMD_ERASE1);
-        self.sendAddr(pageno, self.AddrCycles);
-        self.sendCmd(self.NAND_CMD_ERASE2);
-        self.WaitReady();
+        self.sendCmd(self.NAND_CMD_ERASE1)
+        self.sendAddr(pageno, self.AddrCycles)
+        self.sendCmd(self.NAND_CMD_ERASE2)
+        self.WaitReady()
         err = self.Status()
         self.WriteProtect = True
 
         return err
 
     def WritePage(self, pageno, data):
+        """TODO"""
         err = 0
         self.WriteProtect = False
 
@@ -567,7 +577,7 @@ class NandIO:
                 self.sendCmd(self.NAND_CMD_PAGEPROG)
                 err = self.Status()
                 if err&self.NAND_STATUS_FAIL:
-                    print 'Failed to write 1st half of ', pageno, err
+                    print('Failed to write 1st half of ', pageno, err)
                     continue
                 break
 
@@ -581,7 +591,7 @@ class NandIO:
                 self.sendCmd(self.NAND_CMD_PAGEPROG)
                 err = self.Status()
                 if err&self.NAND_STATUS_FAIL:
-                    print 'Failed to write 2nd half of ', pageno, err
+                    print('Failed to write 2nd half of ', pageno, err)
                     continue
                 break
 
@@ -595,21 +605,22 @@ class NandIO:
                 self.sendCmd(self.NAND_CMD_PAGEPROG)
                 err = self.Status()
                 if err&self.NAND_STATUS_FAIL:
-                    print 'Failed to write OOB of ', pageno, err
+                    print('Failed to write OOB of ', pageno, err)
                     continue
                 break
 
         self.WriteProtect = True
         return err
 
-    def writeBlock(self, block_data):
-        nand_tool.EraseBlockByPage(0) #need to fix
-        page = 0
-        for i in range(0, len(data), self.RawPageSize):
-            nand_tool.WritePage(pageno, data[i:i+self.RawPageSize])
-            page += 1
+#    def writeBlock(self, block_data):
+#        nand_tool.EraseBlockByPage(0) #need to fix
+#        page=0
+#        for i in range(0,len(data),self.RawPageSize):
+#            nand_tool.WritePage(pageno,data[i:i+self.RawPageSize])
+#            page+=1
 
-    def WritePages(self, filename, offset = 0, start_page = -1, end_page = -1, add_oob = False, add_jffs2_eraser_marker = False, raw_mode = False):
+    def WritePages(self, filename, offset=0, start_page=-1, end_page=-1, add_oob=False, add_jffs2_eraser_marker=False, raw_mode=False):
+        """TODO"""
         fd = open(filename, 'rb')
         fd.seek(offset)
         data = fd.read()
@@ -622,18 +633,18 @@ class NandIO:
 
         end_block = end_page/self.PagePerBlock
 
-        if end_page%self.PagePerBlock>0:
+        if end_page%self.PagePerBlock > 0:
             end_block += 1
 
         start = time.time()
-        ecc = ECC()
+        ecc = ECC.ECC()
 
         page = start_page
         block = page/self.PagePerBlock
         current_data_offset = 0
         length = 0
 
-        while page <= end_page and current_data_offset<len(data) and block<self.BlockCount:
+        while page <= end_page and current_data_offset < len(data) and block < self.BlockCount:
             oob_postfix = '\xFF' * 13
             if page%self.PagePerBlock == 0:
 
@@ -647,7 +658,7 @@ class NandIO:
                             break
 
                     if bad_block_found:
-                        print '\nSkipping bad block at ', block
+                        print('\nSkipping bad block at ', block)
                         page += self.PagePerBlock
                         block += 1
                         continue
@@ -662,7 +673,6 @@ class NandIO:
                 current_data_offset += self.PageSize
                 length += len(orig_page_data)
                 orig_page_data += (self.PageSize-len(orig_page_data))*'\x00'
-                import copy
                 (ecc0, ecc1, ecc2) = ecc.CalcECC(orig_page_data)
 
                 oob = struct.pack('BBB', ecc0, ecc1, ecc2) + oob_postfix
@@ -673,7 +683,7 @@ class NandIO:
                 length += len(page_data)
 
             if len(page_data) != self.RawPageSize:
-                print 'Not enough source data'
+                print('Not enough source data')
                 break
 
             current = time.time()
@@ -685,7 +695,7 @@ class NandIO:
 
             lapsed_time = current-start
 
-            if lapsed_time>0:
+            if lapsed_time > 0:
                 if self.UseAnsi:
                     sys.stdout.write('Writing %d%% Page: %d/%d Block: %d/%d Speed: %d bytes/s\n\033[A' % (progress, page, end_page, block, end_block, length/lapsed_time))
                 else:
@@ -698,16 +708,18 @@ class NandIO:
 
         fd.close()
 
-        print '\nWritten %x bytes / %x byte' % (length, len(data))
+        print('\nWritten %x bytes / %x byte' % (length, len(data)))
 
     def Erase(self):
+        """TODO"""
         block = 0
-        while block<self.BlockCount:
+        while block < self.BlockCount:
             self.EraseBlockByPage(block * self.PagePerBlock)
             block += 1
 
     def EraseBlock(self, start_block, end_block):
-        print 'Erasing Block: 0x%x ~ 0x%x' % (start_block, end_block)
+        """TODO"""
+        print('Erasing Block: 0x%x ~ 0x%x' % (start_block, end_block))
         for block in range(start_block, end_block+1, 1):
-            print "Erasing block", block
+            print("Erasing block", block)
             self.EraseBlockByPage(block * self.PagePerBlock)
