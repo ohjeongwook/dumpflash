@@ -44,138 +44,138 @@ parser.add_option("-K", type = "int", default = 32, dest = "pages_per_block")
 
 use_ansi = False
 try:
-	import colorama
-	colorama.init()
-	use_ansi = True
+    import colorama
+    colorama.init()
+    use_ansi = True
 except:
-	try:
-		import tendo.ansiterm
-		use_ansi = True
-	except:
-		pass
+    try:
+        import tendo.ansiterm
+        use_ansi = True
+    except:
+        pass
 
 start_page = -1
 end_page = -1
 if options.pages != None:
-	if len(options.pages)>0:
-		start_page = options.pages[0]
-	if len(options.pages)>1:
-		end_page = options.pages[1]
+    if len(options.pages)>0:
+        start_page = options.pages[0]
+    if len(options.pages)>1:
+        end_page = options.pages[1]
 
 flash_util = FlashUtil(options.filename, options.page_size, options.oob_size, options.pages_per_block, options.slow)
 
 if not flash_util.IsInitialized():
-	print 'Device not ready, aborting...'
-	sys.exit(0)
+    print 'Device not ready, aborting...'
+    sys.exit(0)
 
 flash_util.SetUseAnsi(use_ansi)
 
 if options.blocks != None:
-	if len(options.blocks)>0:
-		start_page = options.blocks[0] * flash_util.io.PagePerBlock
-	if len(options.blocks)>1:
-		end_page = (options.blocks[1] + 1 ) * flash_util.io.PagePerBlock
+    if len(options.blocks)>0:
+        start_page = options.blocks[0] * flash_util.io.PagePerBlock
+    if len(options.blocks)>1:
+        end_page = (options.blocks[1] + 1 ) * flash_util.io.PagePerBlock
 
 if options.information:
-	flash_util.io.DumpInfo()
+    flash_util.io.DumpInfo()
 
 if options.read:
-	flash_util.io.DumpInfo()
-	
-	output_filename = args[0]
+    flash_util.io.DumpInfo()
+    
+    output_filename = args[0]
 
-	if options.filename:
-		if options.add_oob:
-			print 'Add OOB to %s' % (options.filename)
-			flash_util.AddOOB(options.filename, output_filename)
-		else:
-			if options.remove_oob:
-				print 'Removing OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
-			else:
-				print 'Copying OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
+    if options.filename:
+        if options.add_oob:
+            print 'Add OOB to %s' % (options.filename)
+            flash_util.AddOOB(options.filename, output_filename)
+        else:
+            if options.remove_oob:
+                print 'Removing OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
+            else:
+                print 'Copying OOB from pages(0x%x - 0x%x) to %s' % ( start_page, end_page, output_filename)
 
-			flash_util.CopyPages(output_filename,  start_page , end_page, options.remove_oob )
-	else:
-		flash_util.ReadPages(start_page, end_page, options.remove_oob, output_filename, seq = options.seq, raw_mode = options.raw_mode)
+            flash_util.CopyPages(output_filename,  start_page , end_page, options.remove_oob )
+    else:
+        flash_util.ReadPages(start_page, end_page, options.remove_oob, output_filename, seq = options.seq, raw_mode = options.raw_mode)
 
 if options.write:
-	filename = args[0]
-	add_oob = False
-	add_jffs2_eraser_marker = False
-	if options.add_oob:
-		add_oob = True
-	if options.add_jffs2_oob:
-		add_oob = True
-		add_jffs2_eraser_marker = True
+    filename = args[0]
+    add_oob = False
+    add_jffs2_eraser_marker = False
+    if options.add_oob:
+        add_oob = True
+    if options.add_jffs2_oob:
+        add_oob = True
+        add_jffs2_eraser_marker = True
 
-	if options.compare_target_filename != '':
-		cfd = open(options.compare_target_filename, 'rb')
-		cfd.seek(options.offset)
+    if options.compare_target_filename != '':
+        cfd = open(options.compare_target_filename, 'rb')
+        cfd.seek(options.offset)
 
-		fd = open(filename, 'rb')
-		fd.seek(options.offset)
+        fd = open(filename, 'rb')
+        fd.seek(options.offset)
 
-		current_page = 0
-		while 1:
-			cdata = cfd.read(flash_util.io.PageSize)
-			data = fd.read(flash_util.io.PageSize)
+        current_page = 0
+        while 1:
+            cdata = cfd.read(flash_util.io.PageSize)
+            data = fd.read(flash_util.io.PageSize)
 
-			if not data:
-				break
+            if not data:
+                break
 
-			if cdata != data:
-				print 'Changed Page:0x%x file_offset: 0x%x' % ( start_page+current_page, options.offset + current_page*flash_util.io.PageSize)
-				current_block = current_page / flash_util.io.PagePerBlock
+            if cdata != data:
+                print 'Changed Page:0x%x file_offset: 0x%x' % ( start_page+current_page, options.offset + current_page*flash_util.io.PageSize)
+                current_block = current_page / flash_util.io.PagePerBlock
 
-				print 'Erasing and re-programming Block: %d' % (current_block)
-				flash_util.io.EraseBlockByPage(current_page)
-				
-				target_start_page = start_page+current_block*flash_util.io.PagePerBlock
-				target_end_page = target_start_page+flash_util.io.PagePerBlock-1
+                print 'Erasing and re-programming Block: %d' % (current_block)
+                flash_util.io.EraseBlockByPage(current_page)
+                
+                target_start_page = start_page+current_block*flash_util.io.PagePerBlock
+                target_end_page = target_start_page+flash_util.io.PagePerBlock-1
 
-				print 'Programming Page: %d ~ %d' % (target_start_page, target_end_page)
-				flash_util.io.WritePages(
-									filename, 
-									options.offset + current_block*flash_util.io.PagePerBlock*flash_util.io.PageSize, 
-									target_start_page, 
-									target_end_page, 
-									add_oob, 
-									add_jffs2_eraser_marker = add_jffs2_eraser_marker, 
-									raw_mode = options.raw_mode
-								)
-				
-				current_page = (current_block+1)*flash_util.io.PagePerBlock+1
-				fd.seek(options.offset+current_page * flash_util.io.PageSize)
-				cfd.seek(options.offset+current_page * flash_util.io.PageSize)
+                print 'Programming Page: %d ~ %d' % (target_start_page, target_end_page)
+                flash_util.io.WritePages(
+                                    filename, 
+                                    options.offset + current_block*flash_util.io.PagePerBlock*flash_util.io.PageSize, 
+                                    target_start_page, 
+                                    target_end_page, 
+                                    add_oob, 
+                                    add_jffs2_eraser_marker = add_jffs2_eraser_marker, 
+                                    raw_mode = options.raw_mode
+                                )
+                
+                current_page = (current_block+1)*flash_util.io.PagePerBlock+1
+                fd.seek(options.offset+current_page * flash_util.io.PageSize)
+                cfd.seek(options.offset+current_page * flash_util.io.PageSize)
 
-			else:
-				current_page += 1
+            else:
+                current_page += 1
 
-	else:
-		flash_util.io.WritePages(filename, options.offset, start_page, end_page, add_oob, add_jffs2_eraser_marker = add_jffs2_eraser_marker, raw_mode = options.raw_mode)
+    else:
+        flash_util.io.WritePages(filename, options.offset, start_page, end_page, add_oob, add_jffs2_eraser_marker = add_jffs2_eraser_marker, raw_mode = options.raw_mode)
 
 if options.erase:
-	if options.blocks != None:
-		start = options.blocks[0]
-		end = options.blocks[1]
-		flash_util.io.EraseBlock(start, end)
-	else:
-		flash_util.io.Erase()
+    if options.blocks != None:
+        start = options.blocks[0]
+        end = options.blocks[1]
+        flash_util.io.EraseBlock(start, end)
+    else:
+        flash_util.io.Erase()
 
 if options.check_bad_blocks:
-	flash_util.CheckBadBlocks()
+    flash_util.CheckBadBlocks()
 
 if options.check_ecc:
-	flash_util.CheckECC()
+    flash_util.CheckECC()
 
 if options.find_uboot_images:
-	flash_util.FindUBootImages()
+    flash_util.FindUBootImages()
 
 if options.dump_uboot_images:
-	flash_util.DumpUBootImages()
+    flash_util.DumpUBootImages()
 
 if options.find_jffs2:
-	flash_util.FindJFFS2()
+    flash_util.FindJFFS2()
 
 if options.dump_jffs2:
-	flash_util.DumpJFFS2(options.name_prefix)
+    flash_util.DumpJFFS2(options.name_prefix)
