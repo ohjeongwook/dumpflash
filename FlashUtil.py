@@ -281,7 +281,7 @@ class FlashUtil:
             return whole_data[0:maximum]
         return whole_data
 
-    def AddOOB(self, filename, output_filename, jffs 2= False):
+    def AddOOB(self, filename, output_filename, jffs2 = False):
         """TODO"""
         fd = open(filename, 'rb')
         wfd = open(output_filename, "wb")
