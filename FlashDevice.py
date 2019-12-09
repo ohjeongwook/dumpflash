@@ -391,6 +391,8 @@ class NandIO:
         self.BlockCount = int((self.ChipSizeMB*1024*1024)/self.BlockSize)
 
         if self.BlockCount <= 0:
+            self.PagePerBlock = 0
+            self.RawBlockSize = 0
             return False
 
         self.PagePerBlock = int(self.PageCount/self.BlockCount)
