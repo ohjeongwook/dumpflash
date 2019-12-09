@@ -389,6 +389,10 @@ class NandIO:
         self.RawPageSize = self.PageSize+self.OOBSize
         self.BlockSize = self.EraseSize
         self.BlockCount = int((self.ChipSizeMB*1024*1024)/self.BlockSize)
+
+        if self.BlockCount <= 0:
+            return False
+
         self.PagePerBlock = int(self.PageCount/self.BlockCount)
         self.RawBlockSize = self.PagePerBlock*(self.PageSize + self.OOBSize)
         return True
