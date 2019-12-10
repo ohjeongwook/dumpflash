@@ -442,7 +442,7 @@ class NandIO:
             for pageoff in range(0, 2, 1):
                 oob = self.ReadOOB(page+pageoff)
 
-                if oob[5] != '\xff':
+                if oob[5] != b'\xff':
                     print('Bad block found:', block)
                     bad_blocks[page] = 1
                     break
@@ -654,7 +654,7 @@ class NandIO:
         length = 0
 
         while page <= end_page and current_data_offset < len(data) and block < self.BlockCount:
-            oob_postfix = '\xFF' * 13
+            oob_postfix = b'\xff' * 13
             if page%self.PagePerBlock == 0:
 
                 if not raw_mode:
@@ -662,7 +662,7 @@ class NandIO:
                     for pageoff in range(0, 2, 1):
                         oob = self.ReadOOB(page+pageoff)
 
-                        if oob[5] != '\xff':
+                        if oob[5] != b'\xff':
                             bad_block_found = True
                             break
 
@@ -673,7 +673,7 @@ class NandIO:
                         continue
 
                 if add_jffs2_eraser_marker:
-                    oob_postfix = "\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
+                    oob_postfix = b"\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
 
                 self.EraseBlockByPage(page)
 
@@ -681,7 +681,7 @@ class NandIO:
                 orig_page_data = data[current_data_offset:current_data_offset+self.PageSize]
                 current_data_offset += self.PageSize
                 length += len(orig_page_data)
-                orig_page_data += (self.PageSize-len(orig_page_data))*'\x00'
+                orig_page_data += (self.PageSize-len(orig_page_data)) * b'\x00'
                 (ecc0, ecc1, ecc2) = ecc.CalcECC(orig_page_data)
 
                 oob = struct.pack('BBB', ecc0, ecc1, ecc2) + oob_postfix

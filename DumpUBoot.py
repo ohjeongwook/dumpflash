@@ -364,7 +364,7 @@ class uImage:
 
         ofd = open(output_filename, 'wb')
         ofd.write(header)
-        ofd.write('\x00' * (len(files)+1)*4)
+        ofd.write(b'\x00' * (len(files)+1)*4)
 
         dcrc = 0
         lengths = []

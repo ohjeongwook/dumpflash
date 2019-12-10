@@ -103,14 +103,13 @@ class FlashUtil:
 
         print('Checked %d ECC record and found %d errors' % (count, error_count))
 
-
     def CheckBadBlockPage(self, oob):
         """TODO"""
         bad_block = False
 
-        if oob[0:3] != '\xff\xff\xff':
+        if oob[0:3] != b'\xff\xff\xff':
             bad_block = True
-            if oob[0x8:] == '\x85\x19\x03\x20\x08\x00\x00\x00': #JFFS CleanMarker
+            if oob[0x8:] == b'\x85\x19\x03\x20\x08\x00\x00\x00': #JFFS CleanMarker
                 bad_block = False
 
         return bad_block
@@ -123,12 +122,21 @@ class FlashUtil:
         """TODO"""
         for page in range(0, 2, 1):
 #            current_page = block * self.io.PagePerBlock + page
-            oob = self.io.ReadOOB(block * self.io.PagePerBlock + page)
-            bad_block_byte = oob[6:7]
-            if not bad_block_byte:
+            pageno = block * self.io.PagePerBlock + page
+            print('pageno(%d) = block(%d) * PagePerBlock(%d) + page(%d)' % (pageno, block, self.io.PagePerBlock, page))
+            oob = self.io.ReadOOB(pageno)
+
+            try:
+                import hexdump
+                hexdump.hexdump(oob)
+            except:
+                pass
+
+            bad_block_marker = oob[6:7]
+            if not bad_block_marker:
                 return self.ERROR
 
-            if bad_block_byte == '\xff':
+            if bad_block_marker == b'\xff':
                 return self.CLEAN_BLOCK
 
         return self.BAD_BLOCK
@@ -297,11 +305,11 @@ class FlashUtil:
 
             (ecc0, ecc1, ecc2) = ecc.CalcECC(page)
 
-            oob_postfix = '\xFF' * 13
+            oob_postfix = b'\xff' * 13
 
             if current_output_size% self.io.BlockSize == 0:
                 if jffs2 and current_block_number%2 == 0:
-                    oob_postfix = '\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00'
+                    oob_postfix = b'\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00'
                 current_block_number += 1
 
             data = page + struct.pack('BBB', ecc0, ecc1, ecc2) + oob_postfix
@@ -312,9 +320,9 @@ class FlashUtil:
         """
         while size>current_output_size:
             if current_output_size% self.RawBlockSize == 0:
-                wfd.write("\xff"*0x200+ "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00")
+                wfd.write(b"\xff"*0x200+ "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00")
             else:
-                wfd.write("\xff"*0x210)
+                wfd.write(b"\xff"*0x210)
             current_output_size += 0x210
         """
 
@@ -406,7 +414,7 @@ class FlashUtil:
             for pageoff in range(0, 2, 1):
                 oob = self.io.ReadOOB(_start_page+pageoff)
 
-                if oob and oob[5] != '\xff':
+                if oob and oob[5] != b'\xff':
                     is_bad_block = True
                     break
 
@@ -460,7 +468,7 @@ class FlashUtil:
 
             magic = self.io.ReadPage(block*self.io.PagePerBlock)[0:4]
 
-            if magic == '\x27\x05\x19\x56':
+            if magic == b'\x27\x05\x19\x56':
                 uimage = DumpUBoot.uImage()
                 uimage.ParseHeader(self.readData(block*self.io.PagePerBlock, 64))
                 block_size = uimage.size / self.io.BlockSize
@@ -478,7 +486,7 @@ class FlashUtil:
         for pageno in range(0, self.io.PageCount, self.io.PagePerBlock):
             data = self.io.ReadPage(pageno)
 
-            if data[0:4] == '\x27\x05\x19\x56':
+            if data[0:4] == b'\x27\x05\x19\x56':
                 print('U-Boot Image found at block 0x%x' % (pageno / self.io.PagePerBlock))
                 uimage = DumpUBoot.uImage()
                 uimage.ParseHeader(data[0:0x40])
@@ -510,7 +518,7 @@ class FlashUtil:
 #            if not oob:
 #                return 0
 #
-#            if oob[8:] == '\x85\x19\x03\x20\x08\x00\x00\x00' and oob[0:3] != '\xff\xff\xff':
+#            if oob[8:] == b'\x85\x19\x03\x20\x08\x00\x00\x00' and oob[0:3] != '\xff\xff\xff':
 #                return 2
 #
 #        elif ret == self.ERROR:
@@ -528,14 +536,14 @@ class FlashUtil:
         for pageno in range(0, self.io.PageCount, self.io.PagePerBlock):
             oob = self.io.ReadOOB(pageno)
 
-            if oob[8:] == '\x85\x19\x03\x20\x08\x00\x00\x00':
+            if oob[8:] == b'\x85\x19\x03\x20\x08\x00\x00\x00':
                 print('JFFS2 block found:', pageno, pageno-last_jffs2_page)
                 last_jffs2_page = pageno
 
                 if minimum_pageno == -1:
                     minimum_pageno = pageno
                 maximum_pageno = pageno
-            elif oob[0:3] == '\xff\xff\xff':
+            elif oob[0:3] == b'\xff\xff\xff':
                 print('blank page')
             else:
                 print('OOB: ', pageno, pprint.pprint(oob))
@@ -557,7 +565,7 @@ class FlashUtil:
                 if not oob:
                     break
 
-                if oob[8:] == '\x85\x19\x03\x20\x08\x00\x00\x00':
+                if oob[8:] == b'\x85\x19\x03\x20\x08\x00\x00\x00':
                     if start_block == -1:
                         start_block = block
                     distance_to_last_block = block - end_block

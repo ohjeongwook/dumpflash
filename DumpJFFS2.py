@@ -103,7 +103,7 @@ class JFFS:
 
                 while data_offset < len(data):
                     tag = data[data_offset:data_offset+4]
-                    if tag == '\x85\x19\x02\xe0':
+                    if tag == b'\x85\x19\x02\xe0':
                         if self.DumpMagicError:
                             print('\tFound next inode at 0x%x' % data_offset)
                             print('')
@@ -270,7 +270,7 @@ class JFFS:
 
             if new_data_len > 0:
                 try:
-                    data += ['\x00'] * new_data_len
+                    data += [b'\x00'] * new_data_len
                 except:
                     print('offset: %x dsize: %x data offset: %x length: %x (ver: %x) totlen: %x' % (record['offset'], record['dsize'], record['data_offset'], len(record['payload']), record['version'], record['totlen']))
 
@@ -343,7 +343,7 @@ class JFFS:
                                              record['flags'], 
                                              record['data_crc'], 
                                              record['node_crc']
-                                            ) + data + (record['csize'] - len(data)) * '\xFF')
+                                            ) + data + (record['csize'] - len(data)) * b'\xff')
                         fd.close()
 
                     next_offset = offset + record['dsize']
@@ -628,7 +628,7 @@ class JFFS:
                     print(' new_inode: %x' % (len(new_inode)))
 
                     if totlen > new_inode_len:
-                        new_inode += (totlen-new_inode_len) * '\xFF'
+                        new_inode += (totlen-new_inode_len) * b'\xff'
 
                     if output_filename != '':
                         #print 'Writing to %s at 0x%x (0x%x)' % (output_filename, record_data_offset, len(new_inode))

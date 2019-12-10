@@ -15,6 +15,9 @@ class FlashFile:
         """TODO"""
         return True
 
+    def DumpInfo(self):
+        return ""
+
     def SetUseAnsi(self, use_ansi):
         """TODO"""
         self.UseAnsi = use_ansi
