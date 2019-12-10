@@ -7,9 +7,9 @@ import struct
 import sys
 import traceback
 from pyftdi import ftdi
-import ECC
+import ecc
 
-class NandIO:
+class IO:
     ADR_CE = 0x10
     ADR_WP = 0x20
     ADR_CL = 0x40
@@ -646,7 +646,7 @@ class NandIO:
             end_block += 1
 
         start = time.time()
-        ecc = ECC.ECC()
+        ecc = ecc.Calculator()
 
         page = start_page
         block = page/self.PagePerBlock
@@ -682,7 +682,7 @@ class NandIO:
                 current_data_offset += self.PageSize
                 length += len(orig_page_data)
                 orig_page_data += (self.PageSize-len(orig_page_data)) * b'\x00'
-                (ecc0, ecc1, ecc2) = ecc.CalcECC(orig_page_data)
+                (ecc0, ecc1, ecc2) = ecc_calculator.Calc(orig_page_data)
 
                 oob = struct.pack('BBB', ecc0, ecc1, ecc2) + oob_postfix
                 page_data = orig_page_data+oob

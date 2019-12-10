@@ -7,12 +7,12 @@ import os
 import struct
 import sys
 import time
-import FlashFile
-import FlashDevice
-import DumpUBoot
-import ECC
+import flashfile
+import flashdevice
+import uboot
+import ecc
 
-class FlashUtil:
+class IO:
     """TODO"""
     def __init__(self, filename = '', base_offset = 0, length = 0, page_size = 0x800, oob_size = 0x40, page_per_block = 0x40, slow = False):
         """TODO"""
@@ -22,18 +22,18 @@ class FlashUtil:
         self.DumpProgressInterval = 1
 
         if filename:
-            self.io = FlashFile.FlashFile(filename, base_offset = base_offset, length = length, page_size = page_size, oob_size = oob_size, page_per_block = page_per_block)
+            self.SrcImage = flashfile.IO(filename, base_offset = base_offset, length = length, page_size = page_size, oob_size = oob_size, page_per_block = page_per_block)
         else:
-            self.io = FlashDevice.NandIO(slow)
+            self.SrcImage = flashdevice.IO(slow)
 
     def IsInitialized(self):
         """TODO"""
-        return self.io.IsInitialized()
+        return self.SrcImage.IsInitialized()
 
     def SetUseAnsi(self, use_ansi):
         """TODO"""
         self.UseAnsi = use_ansi
-        self.io.SetUseAnsi(use_ansi)
+        self.SrcImage.SetUseAnsi(use_ansi)
 
     def CheckECC(self, start_page = 0, end_page = -1):
         """TODO"""
@@ -42,17 +42,17 @@ class FlashUtil:
         error_count = 0
 
         if end_page == -1:
-            end_page = self.io.PageCount
+            end_page = self.SrcImage.PageCount
 
 #        start_block = 0
-        end_block = end_page/self.io.PagePerBlock
-        if end_page%self.io.PagePerBlock > 0:
+        end_block = end_page/self.SrcImage.PagePerBlock
+        if end_page%self.SrcImage.PagePerBlock > 0:
             end_block += 1
 
-        ecc = ECC.ECC()
+        ecc_calculator = ecc.Calculator()
         start = time.time()
-        for page in range(0, self.io.PageCount, 1):
-            block = page/self.io.PagePerBlock
+        for page in range(0, self.SrcImage.PageCount, 1):
+            block = page/self.SrcImage.PagePerBlock
             if self.DumpProgress:
                 current = time.time()
                 if current-start > self.DumpProgressInterval:
@@ -68,22 +68,22 @@ class FlashUtil:
             #    print 'Bad Block: %d' % block
             #    print ''
 
-            data = self.io.ReadPage(page)
+            data = self.SrcImage.ReadPage(page)
 
             if not data:
 #                end_of_file = True
                 break
 
             count += 1
-            body = data[0:self.io.PageSize]
-            oob_ecc0 = ord(data[self.io.PageSize])
-            oob_ecc1 = ord(data[self.io.PageSize+1])
-            oob_ecc2 = ord(data[self.io.PageSize+2])
+            body = data[0:self.SrcImage.PageSize]
+            oob_ecc0 = ord(data[self.SrcImage.PageSize])
+            oob_ecc1 = ord(data[self.SrcImage.PageSize+1])
+            oob_ecc2 = ord(data[self.SrcImage.PageSize+2])
 
             if (oob_ecc0 == 0xff and oob_ecc1 == 0xff and oob_ecc2 == 0xff) or (oob_ecc0 == 0x00 and oob_ecc1 == 0x00 and oob_ecc2 == 0x00):
                 continue
 
-            (ecc0, ecc1, ecc2) = ecc.CalcECC(body)
+            (ecc0, ecc1, ecc2) = ecc_calculator.Calc(body)
 
             ecc0_xor = ecc0 ^ oob_ecc0
             ecc1_xor = ecc1 ^ oob_ecc1
@@ -92,10 +92,10 @@ class FlashUtil:
             if ecc0_xor != 0 or ecc1_xor != 0 or ecc2_xor != 0:
                 error_count += 1
 
-#                page_in_block = page%self.io.PagePerBlock
+#                page_in_block = page%self.SrcImage.PagePerBlock
 
-                offset = self.io.GetPageOffset(page)
-                print('ECC Error (Block: %3d Page: %3d Data Offset: 0x%x OOB Offset: 0x%x)' % (block, page, offset, offset+self.io.PageSize))
+                offset = self.SrcImage.GetPageOffset(page)
+                print('ECC Error (Block: %3d Page: %3d Data Offset: 0x%x OOB Offset: 0x%x)' % (block, page, offset, offset+self.SrcImage.PageSize))
                 print('  OOB:  0x%.2x 0x%.2x 0x%.2x' % (oob_ecc0, oob_ecc1, oob_ecc2))
                 print('  Calc: 0x%.2x 0x%.2x 0x%.2x' % (ecc0, ecc1, ecc2))
                 print('  XOR:  0x%.2x 0x%.2x 0x%.2x' % (ecc0 ^ oob_ecc0, ecc1 ^ oob_ecc1, ecc2 ^ oob_ecc2))
@@ -121,8 +121,8 @@ class FlashUtil:
     def CheckBadBlock(self, block):
         """TODO"""
         for page in range(0, 2, 1):
-            pageno = block * self.io.PagePerBlock + page
-            oob = self.io.ReadOOB(pageno)
+            pageno = block * self.SrcImage.PagePerBlock + page
+            oob = self.SrcImage.ReadOOB(pageno)
             bad_block_marker = oob[6:7]
             if not bad_block_marker:
                 return self.ERROR
@@ -138,16 +138,16 @@ class FlashUtil:
         error_count = 0
 
 #        start_block = 0
-#        end_page = self.io.PageCount
-        for block in range(self.io.BlockCount):
+#        end_page = self.SrcImage.PageCount
+        for block in range(self.SrcImage.BlockCount):
             ret = self.CheckBadBlock(block)
 
-            progress = (block+1)*100.0/self.io.BlockCount
-            sys.stdout.write('Checking Bad Blocks %d%% Block: %d/%d at offset 0x%x\n' % (progress, block+1, self.io.BlockCount, (block * self.io.BlockSize)))
+            progress = (block+1)*100.0/self.SrcImage.BlockCount
+            sys.stdout.write('Checking Bad Blocks %d%% Block: %d/%d at offset 0x%x\n' % (progress, block+1, self.SrcImage.BlockCount, (block * self.SrcImage.BlockSize)))
 
             if ret == self.BAD_BLOCK:
                 error_count += 1
-                print("\nBad Block: %d (at physical offset 0x%x)" % (block+1, (block * self.io.BlockSize)))
+                print("\nBad Block: %d (at physical offset 0x%x)" % (block+1, (block * self.SrcImage.BlockSize)))
 
             elif ret == self.ERROR:
                 break
@@ -170,10 +170,10 @@ class FlashUtil:
             start_page = 0
 
         if end_page == -1:
-            end_page = self.io.PageCount
+            end_page = self.SrcImage.PageCount
 
-        end_block = int(end_page/self.io.PagePerBlock)
-        if end_page%self.io.PagePerBlock:
+        end_block = int(end_page/self.SrcImage.PagePerBlock)
+        if end_page%self.SrcImage.PagePerBlock:
             end_block += 1
 
         if start_page == end_page:
@@ -184,7 +184,7 @@ class FlashUtil:
         start = time.time()
         last_time = time.time()
         for page in range(start_page, end_page, 1):
-            data = self.io.ReadPage(page, remove_oob)
+            data = self.SrcImage.ReadPage(page, remove_oob)
 
             if filename:
                 if maximum != 0:
@@ -207,7 +207,7 @@ class FlashUtil:
                     last_time = current
 
                     progress = (page-start_page) * 100 / (end_page-start_page)
-                    block = page/self.io.PagePerBlock
+                    block = page/self.SrcImage.PagePerBlock
                     if self.UseAnsi:
                         fmt_str = 'Reading %3d%% Page: %3d/%3d Block: %3d/%3d Speed: %8d bytes/s\n\033[A'
                     else:
@@ -237,17 +237,17 @@ class FlashUtil:
             start_page = 0
 
         if end_page == -1:
-            end_page = self.io.PageCount
+            end_page = self.SrcImage.PageCount
 
-        end_block = end_page/self.io.PagePerBlock
-        if end_page%self.io.PagePerBlock:
+        end_block = end_page/self.SrcImage.PagePerBlock
+        if end_page%self.SrcImage.PagePerBlock:
             end_block += 1
 
         whole_data = ''
         length = 0
         start = time.time()
-        for page in range(start_page, end_page, self.io.PagePerBlock):
-            data = self.io.ReadSeq(page, remove_oob, raw_mode)
+        for page in range(start_page, end_page, self.SrcImage.PagePerBlock):
+            data = self.SrcImage.ReadSeq(page, remove_oob, raw_mode)
 
             if filename:
                 if maximum != 0:
@@ -264,7 +264,7 @@ class FlashUtil:
             current = time.time()
 
             if self.DumpProgress:
-                block = page/self.io.PagePerBlock
+                block = page/self.SrcImage.PagePerBlock
                 progress = (page-start_page) * 100 / (end_page-start_page)
                 lapsed_time = current-start
 
@@ -288,18 +288,18 @@ class FlashUtil:
 
         current_block_number = 0
         current_output_size = 0
-        ecc = ECC.ECC()
+        ecc = ecc.Calculator()
         while 1:
-            page = fd.read(self.io.PageSize)
+            page = fd.read(self.SrcImage.PageSize)
 
             if not page:
                 break
 
-            (ecc0, ecc1, ecc2) = ecc.CalcECC(page)
+            (ecc0, ecc1, ecc2) = ecc_calculator.Calc(page)
 
             oob_postfix = b'\xff' * 13
 
-            if current_output_size% self.io.BlockSize == 0:
+            if current_output_size% self.SrcImage.BlockSize == 0:
                 if jffs2 and current_block_number%2 == 0:
                     oob_postfix = b'\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00'
                 current_block_number += 1
@@ -321,37 +321,25 @@ class FlashUtil:
         fd.close()
         wfd.close()
 
-    def CopyPages(self, output_filename, start_page = 0, end_page = -1, remove_oob = True):
-        """TODO"""
-        if start_page == -1:
-            start_page = 0
-
-        if end_page == -1:
-            end = self.io.BlockSize*self.io.RawPageSize*self.io.PagePerBlock
-        else:
-            end = end_page * self.io.RawPageSize
-
-        return self.CopyPagesByOffset(output_filename, start_page * self.io.RawPageSize, end, remove_oob)
-
-    def CopyPagesByOffset(self, output_filename, start = 0, end = -1, remove_oob = True):
+    def ExtractPagesByOffset(self, output_filename, start = 0, end = -1, remove_oob = True):
         """TODO"""
         if start == -1:
             start = 0
 
         if end == -1:
-            end = self.io.RawBlockSize*self.io.BlockCount
+            end = self.SrcImage.RawBlockSize*self.SrcImage.BlockCount
 
         wfd = open(output_filename, 'wb')
 
-        start_block = int(start / self.io.RawBlockSize)
-        start_block_offset = start % self.io.RawBlockSize
-        start_page = int(start_block_offset / self.io.RawPageSize)
-        start_page_offset = start_block_offset % self.io.RawPageSize
+        start_block = int(start / self.SrcImage.RawBlockSize)
+        start_block_offset = start % self.SrcImage.RawBlockSize
+        start_page = int(start_block_offset / self.SrcImage.RawPageSize)
+        start_page_offset = start_block_offset % self.SrcImage.RawPageSize
 
-        end_block = int(end / self.io.RawBlockSize)
-        end_block_offset = end % self.io.RawBlockSize
-        end_page = int(end_block_offset / self.io.RawPageSize)
-        end_page_offset = end_block_offset % self.io.RawPageSize
+        end_block = int(end / self.SrcImage.RawBlockSize)
+        end_block_offset = end % self.SrcImage.RawBlockSize
+        end_page = int(end_block_offset / self.SrcImage.RawPageSize)
+        end_page_offset = end_block_offset % self.SrcImage.RawPageSize
 
         print('Dumping blocks (Block: 0x%x Offset: 0x%x ~  Block: 0x%x Offset: 0x%x)' % (start_block, start_block_offset, end_block, end_block_offset))
         print('0x%x - 0x%x' % (start, end))
@@ -361,7 +349,7 @@ class FlashUtil:
 
             if ret == self.CLEAN_BLOCK:
                 current_start_page = 0
-                current_end_page = self.io.PagePerBlock
+                current_end_page = self.SrcImage.PagePerBlock
 
                 if block == start_block:
                     current_start_page = start_page
@@ -369,12 +357,12 @@ class FlashUtil:
                     current_end_page = end_page+1
 
                 for page in range(current_start_page, current_end_page, 1):
-                    data = self.io.ReadPage(block * self.io.PagePerBlock + page)
+                    data = self.SrcImage.ReadPage(block * self.SrcImage.PagePerBlock + page)
 
                     if not remove_oob:
-                        write_size = self.io.RawPageSize
+                        write_size = self.SrcImage.RawPageSize
                     else:
-                        write_size = self.io.PageSize
+                        write_size = self.SrcImage.PageSize
 
                     if block == start_block and page == current_start_page and start_page_offset > 0:
                         wfd.write(data[start_page_offset:write_size])
@@ -393,29 +381,41 @@ class FlashUtil:
 
         wfd.close()
 
+    def ExtractPages(self, output_filename, start_page = 0, end_page = -1, remove_oob = True):
+        """TODO"""
+        if start_page == -1:
+            start_page = 0
+
+        if end_page == -1:
+            end = self.SrcImage.BlockSize*self.SrcImage.RawPageSize*self.SrcImage.PagePerBlock
+        else:
+            end = end_page * self.SrcImage.RawPageSize
+
+        return self.ExtractPagesByOffset(output_filename, start_page * self.SrcImage.RawPageSize, end, remove_oob)
+
     def readData(self, start_page, length, filename = ''):
         """TODO"""
-        start_block = start_page / self.io.PagePerBlock
-        start_block_page = start_page % self.io.PagePerBlock
+        start_block = start_page / self.SrcImage.PagePerBlock
+        start_block_page = start_page % self.SrcImage.PagePerBlock
 
         expected_data_length = 0
         block = start_block
         blocks = []
-        for _start_page in range(start_block*self.io.PagePerBlock, self.io.PageCount, self.io.PagePerBlock):
+        for _start_page in range(start_block*self.SrcImage.PagePerBlock, self.SrcImage.PageCount, self.SrcImage.PagePerBlock):
             is_bad_block = False
             for pageoff in range(0, 2, 1):
-                oob = self.io.ReadOOB(_start_page+pageoff)
+                oob = self.SrcImage.ReadOOB(_start_page+pageoff)
 
                 if oob and oob[5] != b'\xff':
                     is_bad_block = True
                     break
 
             if not is_bad_block:
-                if _start_page <= start_page and _start_page <= start_page+self.io.PagePerBlock: #First block
-                    expected_data_length += (self.io.PagePerBlock-start_block_page) * self.io.PageSize
+                if _start_page <= start_page and _start_page <= start_page+self.SrcImage.PagePerBlock: #First block
+                    expected_data_length += (self.SrcImage.PagePerBlock-start_block_page) * self.SrcImage.PageSize
                     blocks.append(block)
                 else:
-                    expected_data_length += self.io.PagePerBlock * self.io.PageSize
+                    expected_data_length += self.SrcImage.PagePerBlock * self.SrcImage.PageSize
                     blocks.append(block)
 
             if expected_data_length >= length:
@@ -427,14 +427,14 @@ class FlashUtil:
         append = False
         maximum = length
         for block in blocks:
-            start_page = block * self.io.PagePerBlock
-            end_page = (block+1) * self.io.PagePerBlock
+            start_page = block * self.SrcImage.PagePerBlock
+            end_page = (block+1) * self.SrcImage.PagePerBlock
             if block == start_block:
                 start_page += start_block_page
 
             data += self.ReadPages(start_page, end_page, True, filename, append = append, maximum = maximum, seq = self.UseSequentialMode)
 
-            maximum -= self.io.PagePerBlock*self.io.PageSize
+            maximum -= self.SrcImage.PagePerBlock*self.SrcImage.PageSize
 
             if len(data) > length:
                 break
@@ -458,12 +458,12 @@ class FlashUtil:
             elif ret == self.ERROR:
                 break
 
-            magic = self.io.ReadPage(block*self.io.PagePerBlock)[0:4]
+            magic = self.SrcImage.ReadPage(block*self.SrcImage.PagePerBlock)[0:4]
 
             if magic == b'\x27\x05\x19\x56':
-                uimage = DumpUBoot.uImage()
-                uimage.ParseHeader(self.readData(block*self.io.PagePerBlock, 64))
-                block_size = uimage.size / self.io.BlockSize
+                uimage = uboot.uImage()
+                uimage.ParseHeader(self.readData(block*self.SrcImage.PagePerBlock, 64))
+                block_size = uimage.size / self.SrcImage.BlockSize
                 print('\nU-Boot Image found at block %d ~ %d (0x%x ~ 0x%x)' % (block, block+block_size, block, block+block_size))
                 uimage.DumpHeader()
                 print('')
@@ -472,15 +472,15 @@ class FlashUtil:
 
         print("Checked %d blocks" % (block))
 
-    def DumpUBootImages(self):
+    def ubootImages(self):
         """TODO"""
         seq = 0
-        for pageno in range(0, self.io.PageCount, self.io.PagePerBlock):
-            data = self.io.ReadPage(pageno)
+        for pageno in range(0, self.SrcImage.PageCount, self.SrcImage.PagePerBlock):
+            data = self.SrcImage.ReadPage(pageno)
 
             if data[0:4] == b'\x27\x05\x19\x56':
-                print('U-Boot Image found at block 0x%x' % (pageno / self.io.PagePerBlock))
-                uimage = DumpUBoot.uImage()
+                print('U-Boot Image found at block 0x%x' % (pageno / self.SrcImage.PagePerBlock))
+                uimage = uboot.uImage()
                 uimage.ParseHeader(data[0:0x40])
                 uimage.DumpHeader()
 
@@ -494,7 +494,7 @@ class FlashUtil:
                 self.readData(pageno, 0x40+uimage.size, output_filename)
                 print('')
 
-                uimage = DumpUBoot.uImage()
+                uimage = uboot.uImage()
                 uimage.ParseFile(output_filename)
                 uimage.Extract()
 
@@ -503,8 +503,8 @@ class FlashUtil:
 #        ret = self.CheckBadBlock(block)
 #        if ret == self.CLEAN_BLOCK:
 #            page = 0
-#            block_offset = (block * self.io.RawBlockSize) + (page * self.io.RawPageSize)
-#            self.fd.seek(block_offset + self.io.PageSize)
+#            block_offset = (block * self.SrcImage.RawBlockSize) + (page * self.SrcImage.RawPageSize)
+#            self.fd.seek(block_offset + self.SrcImage.PageSize)
 #            oob = self.fd.read(16)
 #
 #            if not oob:
@@ -524,9 +524,9 @@ class FlashUtil:
         maximum_pageno = -1
         last_jffs2_page = -1
 
-        print('Find JFFS2: page count: 0x%x' % (self.io.PageCount))
-        for pageno in range(0, self.io.PageCount, self.io.PagePerBlock):
-            oob = self.io.ReadOOB(pageno)
+        print('Find JFFS2: page count: 0x%x' % (self.SrcImage.PageCount))
+        for pageno in range(0, self.SrcImage.PageCount, self.SrcImage.PagePerBlock):
+            oob = self.SrcImage.ReadOOB(pageno)
 
             if oob[8:] == b'\x85\x19\x03\x20\x08\x00\x00\x00':
                 print('JFFS2 block found:', pageno, pageno-last_jffs2_page)
@@ -549,10 +549,10 @@ class FlashUtil:
         end_block = 0
         jffs2_blocks = []
 
-        for block in range(0, self.io.BlockCount, 1):
+        for block in range(0, self.SrcImage.BlockCount, 1):
             ret = self.CheckBadBlock(block)
             if ret == self.CLEAN_BLOCK:
-                oob = self.io.ReadOOB(block*self.io.PagePerBlock)
+                oob = self.SrcImage.ReadOOB(block*self.SrcImage.PagePerBlock)
 
                 if not oob:
                     break
@@ -588,10 +588,10 @@ class FlashUtil:
             else:
                 filename = 'JFFS2-%.2d.dmp' % i
 
-            self.ReadPages(start_block*self.io.PagePerBlock, (end_block+1)*self.io.PagePerBlock, remove_oob = True, filename = filename, seq = self.UseSequentialMode)
+            self.ReadPages(start_block*self.SrcImage.PagePerBlock, (end_block+1)*self.SrcImage.PagePerBlock, remove_oob = True, filename = filename, seq = self.UseSequentialMode)
             i += 1
 
 if __name__ == '__main__':
     f = sys.argv[1]
-    flash_util = FlashUtil(f)
-    flash_util.FindUBootImages()
+    io = IO(f)
+    io.FindUBootImages()

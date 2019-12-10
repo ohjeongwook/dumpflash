@@ -2,7 +2,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=line-too-long
 
-class ECC:
+class Calculator:
     """TODO"""
     Parity = (
         0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 
@@ -25,7 +25,7 @@ class ECC:
 
     DebugLevel = 0
 
-    def CalcECC(self, body):
+    def Calc(self, body):
         """TODO"""
         p8 = 0
         p8_ = 0
@@ -116,7 +116,7 @@ class ECC:
 
         return (ecc0 ^ 0xff, ecc1 ^ 0xff, ecc2 ^ 0xff)
 
-    def CalcECC2(self, body):
+    def Calc2(self, body):
         """TODO"""
         par = 0
         rp0 = 0
