@@ -1,4 +1,3 @@
-"""TODO"""
 # pylint: disable=invalid-name
 # pylint: disable=line-too-long
 from array import array as Array
@@ -161,15 +160,12 @@ class IO:
         self.GetID()
 
     def IsInitialized(self):
-        """TODO"""
         return self.Identified
 
     def SetUseAnsi(self, use_ansi):
-        """TODO"""
         self.UseAnsi = use_ansi
 
     def WaitReady(self):
-        """TODO"""
         while 1:
             self.Ftdi.write_data(Array('B', [ftdi.Ftdi.GET_BITS_HIGH]))
             data = self.Ftdi.read_data_bytes(1)
@@ -185,7 +181,6 @@ class IO:
         return
 
     def nandRead(self, cl, al, count):
-        """TODO"""
         cmds = []
         cmd_type = 0
         if cl == 1:
@@ -208,7 +203,6 @@ class IO:
         return data.tobytes()
 
     def nandWrite(self, cl, al, data):
-        """TODO"""
         cmds = []
         cmd_type = 0
         if cl == 1:
@@ -226,11 +220,9 @@ class IO:
         self.Ftdi.write_data(Array('B', cmds))
 
     def sendCmd(self, cmd):
-        """TODO"""
         self.nandWrite(1, 0, chr(cmd))
 
     def sendAddr(self, addr, count):
-        """TODO"""
         data = ''
 
         for _ in range(0, count, 1):
@@ -240,25 +232,20 @@ class IO:
         self.nandWrite(0, 1, data)
 
     def Status(self):
-        """TODO"""
         self.sendCmd(0x70)
         status = self.readFlashData(1)[0]
         return status
 
     def readFlashData(self, count):
-        """TODO"""
         return self.nandRead(0, 0, count)
 
     def writeData(self, data):
-        """TODO"""
         return self.nandWrite(0, 0, data)
 
     def getSlow(self):
-        """TODO"""
         return self.Slow
 
     def GetID(self):
-        """TODO"""
         self.sendCmd(self.NAND_CMD_READID)
         self.sendAddr(0, 1)
         flash_identifiers = self.readFlashData(8)
@@ -400,13 +387,11 @@ class IO:
         return True
 
     def GetBitsPerCell(self, cellinfo):
-        """TODO"""
         bits = cellinfo & self.NAND_CI_CELLTYPE_MSK
         bits >>= self.NAND_CI_CELLTYPE_SHIFT
         return bits+1
 
     def DumpInfo(self):
-        """TODO"""
         print('Full ID:\t', self.IDString)
         print('ID Length:\t', self.IDLength)
         print('Name:\t\t', self.Name)
@@ -424,7 +409,6 @@ class IO:
         print('')
 
     def CheckBadBlocks(self):
-        """TODO"""
         bad_blocks = {}
 #        end_page = self.PageCount
 
@@ -450,7 +434,6 @@ class IO:
         return bad_blocks
 
     def ReadOOB(self, pageno):
-        """TODO"""
         bytes_to_send = []
         if self.Options&self.LP_Options:
             self.sendCmd(self.NAND_CMD_READ0)
@@ -472,7 +455,6 @@ class IO:
         return data
 
     def ReadPage(self, pageno, remove_oob = False):
-        """TODO"""
         bytes_to_read = bytearray()
 
         if self.Options&self.LP_Options:
@@ -490,7 +472,7 @@ class IO:
             else:
                 bytes_to_read = self.readFlashData(self.PageSize+self.OOBSize)
 
-            #TODO: Implement remove_oob
+            #d: Implement remove_oob
         else:
             self.sendCmd(self.NAND_CMD_READ0)
             self.WaitReady()
@@ -514,7 +496,6 @@ class IO:
         return bytes_to_read
 
     def ReadSeq(self, pageno, remove_oob = False, raw_mode = False):
-        """TODO"""
         page = []
         self.sendCmd(self.NAND_CMD_READ0)
         self.WaitReady()
@@ -551,7 +532,6 @@ class IO:
         return data
 
     def EraseBlockByPage(self, pageno):
-        """TODO"""
         self.WriteProtect = False
         self.sendCmd(self.NAND_CMD_ERASE1)
         self.sendAddr(pageno, self.AddrCycles)
@@ -563,7 +543,6 @@ class IO:
         return err
 
     def WritePage(self, pageno, data):
-        """TODO"""
         err = 0
         self.WriteProtect = False
 
@@ -629,7 +608,6 @@ class IO:
 #            page += 1
 
     def WritePages(self, filename, offset = 0, start_page = -1, end_page = -1, add_oob = False, add_jffs2_eraser_marker = False, raw_mode = False):
-        """TODO"""
         fd = open(filename, 'rb')
         fd.seek(offset)
         data = fd.read()
@@ -720,14 +698,12 @@ class IO:
         print('\nWritten %x bytes / %x byte' % (length, len(data)))
 
     def Erase(self):
-        """TODO"""
         block = 0
         while block < self.BlockCount:
             self.EraseBlockByPage(block * self.PagePerBlock)
             block += 1
 
     def EraseBlock(self, start_block, end_block):
-        """TODO"""
         print('Erasing Block: 0x%x ~ 0x%x' % (start_block, end_block))
         for block in range(start_block, end_block+1, 1):
             print("Erasing block", block)

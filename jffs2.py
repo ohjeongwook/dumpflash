@@ -1,4 +1,3 @@
-"""TODO"""
 # pylint: disable=invalid-name
 # pylint: disable=line-too-long
 from optparse import OptionParser
@@ -17,7 +16,6 @@ class Util:
         self.FlashImageIO = flash_image_io
 
     def FindJFFS2Blocks(self):
-        """TODO"""
         #bad_blocks = {}
         minimum_pageno = -1
         maximum_pageno = -1
@@ -42,7 +40,6 @@ class Util:
         return [minimum_pageno, maximum_pageno]
 
     def FindJFFS2(self):
-        """TODO"""
         start_block = -1
         end_block = 0
         jffs2_blocks = []
@@ -80,7 +77,6 @@ class Util:
         return jffs2_blocks
 
     def DumpJFFS2(self, name_prefix = ''):
-        """TODO"""
         i = 0
         for (start_block, end_block) in self.FindJFFS2():
             print('Dumping %d JFFS2 block Block: %d - %d ...' % (i, start_block, end_block))

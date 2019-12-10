@@ -1,4 +1,3 @@
-"""TODO"""
 # pylint: disable=invalid-name
 # pylint: disable=line-too-long
 crc32table_le = [
@@ -526,19 +525,16 @@ crc32table_le = [
 
 
 class CRC32:
-    """TODO"""
     CRCPOLY_LE = 0xedb88320
     CRCPOLY_BE = 0x04c11db7
     CRC_LE_BITS = 0
     CRC_BE_BITS = 0
 
     def set_sarwate(self):
-        """TODO"""
         self.CRC_LE_BITS = 8
         self.CRC_BE_BITS = 8
 
     def crc32_le_generic(self, crc, buff, tab, _unused_polynomial):
-        """TODO"""
         if self.CRC_LE_BITS == 8:
             for ch in buff:
                 crc ^= ord(ch)
@@ -547,15 +543,12 @@ class CRC32:
         return None
 
     def crc32_le(self, crc, buff):
-        """TODO"""
         return self.crc32_le_generic(crc, buff, crc32table_le, self.CRCPOLY_LE)
 
     def calc(self, data):
-        """TODo"""
         return self.crc32_le(0, data)
 
     def calc_file(self, filename):
-        """TODO"""
         fd = open(filename, 'rb')
         data = fd.read()
         fd.close()

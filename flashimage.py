@@ -1,4 +1,3 @@
-"""TODO"""
 # pylint: disable=invalid-name
 # pylint: disable=line-too-long
 from optparse import OptionParser
@@ -13,9 +12,7 @@ import uboot
 import ecc
 
 class IO:
-    """TODO"""
     def __init__(self, filename = '', base_offset = 0, length = 0, page_size = 0x800, oob_size = 0x40, page_per_block = 0x40, slow = False):
-        """TODO"""
         self.UseAnsi = False
         self.UseSequentialMode = False
         self.DumpProgress = True
@@ -27,16 +24,13 @@ class IO:
             self.SrcImage = flashdevice.IO(slow)
 
     def IsInitialized(self):
-        """TODO"""
         return self.SrcImage.IsInitialized()
 
     def SetUseAnsi(self, use_ansi):
-        """TODO"""
         self.UseAnsi = use_ansi
         self.SrcImage.SetUseAnsi(use_ansi)
 
     def CheckECC(self, start_page = 0, end_page = -1):
-        """TODO"""
         block = 0
         count = 0
         error_count = 0
@@ -104,7 +98,6 @@ class IO:
         print('Checked %d ECC record and found %d errors' % (count, error_count))
 
     def CheckBadBlockPage(self, oob):
-        """TODO"""
         bad_block = False
 
         if oob[0:3] != b'\xff\xff\xff':
@@ -119,7 +112,6 @@ class IO:
     ERROR = 2
 
     def CheckBadBlock(self, block):
-        """TODO"""
         for page in range(0, 2, 1):
             pageno = block * self.SrcImage.PagePerBlock + page
             oob = self.SrcImage.ReadOOB(pageno)
@@ -133,7 +125,6 @@ class IO:
         return self.BAD_BLOCK
 
     def CheckBadBlocks(self):
-        """TODO"""
         block = 0
         error_count = 0
 
@@ -154,7 +145,6 @@ class IO:
         print("\nChecked %d blocks and found %d errors" % (block+1, error_count))
 
     def ReadPages(self, start_page = -1, end_page = -1, remove_oob = False, filename = '', append = False, maximum = 0, seq = False, raw_mode = False):
-        """TODO"""
         print('* ReadPages: %d ~ %d' % (start_page, end_page))
 
         if seq:
@@ -227,7 +217,6 @@ class IO:
         return whole_data
 
     def ReadSeqPages(self, start_page = -1, end_page = -1, remove_oob = False, filename = '', append = False, maximum = 0, raw_mode = False):
-        """TODO"""
         if filename:
             if append:
                 fd = open(filename, 'ab')
@@ -282,7 +271,6 @@ class IO:
         return whole_data
 
     def AddOOB(self, filename, output_filename, jffs2 = False):
-        """TODO"""
         fd = open(filename, 'rb')
         wfd = open(output_filename, "wb")
 
@@ -322,7 +310,6 @@ class IO:
         wfd.close()
 
     def ExtractPagesByOffset(self, output_filename, start_offset = 0, end_offset = -1, remove_oob = True):
-        """TODO"""
         if start_offset == -1:
             start_offset = 0
 
@@ -380,7 +367,6 @@ class IO:
                     print("Skipping block %d" % block)
 
     def ExtractPages(self, output_filename, start_page = 0, end_page = -1, remove_oob = True):
-        """TODO"""
         if start_page == -1:
             start_page = 0
 
@@ -392,7 +378,6 @@ class IO:
         return self.ExtractPagesByOffset(output_filename, start_page * self.SrcImage.RawPageSize, end_offset, remove_oob)
 
     def ExtractData(self, start_page, length, filename = ''):
-        """TODO"""
         start_block = start_page / self.SrcImage.PagePerBlock
         start_block_page = start_page % self.SrcImage.PagePerBlock
 

@@ -1,4 +1,3 @@
-"""TODO"""
 # pylint: disable=invalid-name
 # pylint: disable=line-too-long
 import sys

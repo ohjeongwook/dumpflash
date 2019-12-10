@@ -1,4 +1,3 @@
-"""TODO"""
 # pylint: disable=invalid-name
 # pylint: disable=line-too-long
 import struct
@@ -63,7 +62,6 @@ dirent_unpack_fmt = '<LLLLLBBBLL'
 dirent_struct_size = struct.calcsize(dirent_unpack_fmt)
 
 class JFFS:
-    """TODO"""
     DebugLevel = 0
     DumpMagicError = False
     def __init__(self):
@@ -72,7 +70,6 @@ class JFFS:
         self.OrigFilename = None
 
     def Parse(self, filename, target_filename = ''):
-        """TODO"""
         self.OrigFilename = filename
         fd = open(filename, 'rb')
         data = fd.read()
@@ -247,7 +244,6 @@ class JFFS:
             pprint.pprint(self.DirentMap)
 
     def GetPath(self, ino):
-        """TODO"""
         path = ''
 
         while ino != 0 and ino in self.DirentMap:
@@ -257,7 +253,6 @@ class JFFS:
         return path
 
     def ReadFileData(self, inode_map_record, dump = False):
-        """TODO"""
         data = []
         for record in inode_map_record:
             if dump:
@@ -279,7 +274,6 @@ class JFFS:
         return ''.join(data)
 
     def ReadFileDataSeq(self, inode_map_record, dump = False):
-        """TODO"""
         next_offset = 0
         data = ''
 
@@ -297,7 +291,6 @@ class JFFS:
         return data
 
     def WriteData(self, output_filename, inode_map_record, data):
-        """TODO"""
         shutil.copy(self.OrigFilename, output_filename)
 
         next_offset = 0
@@ -358,7 +351,6 @@ class JFFS:
         return data
 
     def DumpFile(self, filename, mod = '', out = ''):
-        """TODO"""
         print('DumpFile')
         for ino in list(self.DirentMap.keys()):
             if ino in self.INodeMap:
@@ -379,7 +371,6 @@ class JFFS:
                         fd.close()
 
     def DumpIno(self, output_dir, ino, target_filename = ''):
-        """TODO"""
         path = self.GetPath(ino)
 
         directory = os.path.dirname(path)
@@ -422,7 +413,6 @@ class JFFS:
                 print('Failed to create file: %s' % (local_path))
 
     def Dump(self, output_dir, target_filename = ''):
-        """TODO"""
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
 
@@ -437,7 +427,6 @@ class JFFS:
                 self.DumpIno(output_dir, ino, target_filename)
 
     def ListData(self, inode_map_record):
-        """TODO"""
         for record in inode_map_record:
             print('version: 0x%x' % record['version'])
             print('\toffset: 0x%x' % record['offset'])
@@ -448,7 +437,6 @@ class JFFS:
             print('\tatime: 0x%x' % record['atime'])
 
     def ListFile(self, filename):
-        """TODO"""
         print('Path\tInode\tNumber of records')
         for ino in list(self.DirentMap.keys()):
             if ino in self.INodeMap:
@@ -521,7 +509,6 @@ class JFFS:
         return data
 
     def MakeInodeWithHeader(self, header, payload):
-        """TODO"""
         (magic, nodetype, totlen) = struct.unpack(header_unpack_fmt, header[0:header_struct_size])
 
         print('magic: %X' % (magic))
@@ -568,7 +555,6 @@ class JFFS:
         )
 
     def MakeInodeWithHeaderFile(self, header_file, payload_file):
-        """TODO"""
         fd = open(header_file, 'rb')
         header = fd.read()[0:header_struct_size+inode_struct_size]
         fd.close()
@@ -580,7 +566,6 @@ class JFFS:
         return self.MakeInodeWithHeader(header, payload)
 
     def WriteIno(self, ino, target_filename, offset, size, new_data_filename, output_filename):
-        """TODO"""
         path = self.GetPath(ino)
 
 #        directory = os.path.dirname(path)
@@ -653,7 +638,6 @@ class JFFS:
                         fd.close()
 
     def WriteFile(self, target_filename, new_data_filename, offset, size, output_filename):
-        """TODO"""
         processed_ino = {}
         for ino in list(self.DirentMap.keys()):
             if ino in self.INodeMap:

@@ -1,11 +1,9 @@
-"""TODO"""
 # pylint: disable=invalid-name
 # pylint: disable=line-too-long
 import struct
 import zlib
 
 class uImage:
-    """TODO"""
     HEADER_PACK_STR = '>LLLLLLLBBBB32s'
     MAGIC = 0x27051956
 
@@ -116,7 +114,6 @@ class uImage:
     COMP_BZIP2 = 2
 
     def __init__(self):
-        """TODO"""
         self.filename = None
         self.magic = None
         self.hcrc = None
@@ -132,7 +129,6 @@ class uImage:
         self.name = None
 
     def GetOSString(self, os):
-        """TODO"""
         if os == self.IH_OS_INVALID:
             return self.IH_OS_STR_INVALID
         if os == self.IH_OS_OPENBSD:
@@ -178,7 +174,6 @@ class uImage:
         return ""
 
     def GetArchString(self, arch):
-        """TODO"""
         if arch == self.IH_CPU_INVALID:
             return self.IH_CPU_STR_INVALID
         if arch == self.IH_CPU_ALPHA:
@@ -219,7 +214,6 @@ class uImage:
         return 'Unknown'
 
     def GetTypeString(self, type_string):
-        """TODO"""
         if type_string == self.IH_TYPE_INVALID:
             return self.IH_TYPE_STR_INVALID
         if type_string == self.IH_TYPE_STANDALONE:
@@ -241,7 +235,6 @@ class uImage:
         return ''
 
     def GetCompString(self, comp):
-        """TODO"""
         if comp == self.COMP_NONE:
             return 'None'
         if comp == self.COMP_GZIP:
@@ -251,7 +244,6 @@ class uImage:
         return None
 
     def ParseFile(self, filename):
-        """TODO"""
         self.filename = filename
         fd = open(self.filename, 'rb')
         header = fd.read(0x40)
@@ -260,11 +252,9 @@ class uImage:
         self.ParseHeader(header)
 
     def ParseHeader(self, header):
-        """TODO"""
         (self.magic, self.hcrc, self.time, self.size, self.load, self.ep, self.dcrc, self.os, self.arch, self.type, self.comp, self.name) = struct.unpack(self.HEADER_PACK_STR, header)
 
     def DumpHeader(self):
-        """TODO"""
         print('Magic:\t0x%x'% (self.magic))
         print('HCRC:\t0x%x'% (self.hcrc))
         print('Time:\t0x%x'% (self.time))
@@ -279,7 +269,6 @@ class uImage:
         print('Name:\t%s'% (self.name))
 
     def CheckCRC(self):
-        """TODO"""
         fd = open(self.filename, 'rb')
         header = fd.read(0x40)
         data = fd.read(self.size)
@@ -291,7 +280,6 @@ class uImage:
         print('%08X' % (zlib.crc32(data) & 0xFFFFFFFF))
 
     def FixHeader(self):
-        """TODO"""
         fd = open(self.filename, 'rb')
         header = fd.read(0x40)
         data = fd.read(self.size)
@@ -317,7 +305,6 @@ class uImage:
         fd.close()
 
     def Extract(self):
-        """TODO"""
         seq = 0
         if self.type == self.IH_TYPE_MULTI:
             fd = open(self.filename, 'rb')
@@ -357,7 +344,6 @@ class uImage:
                 wfd.close()
 
     def Merge(self, header_file, files, output_filename):
-        """TODO"""
         fd = open(header_file, 'rb')
         header = fd.read(0x40)
         fd.close()
@@ -391,7 +377,6 @@ class Util:
         self.FlashImageIO = flash_image_io
 
     def FindUBootImages(self):
-        """TODO"""
         print('Finding U-Boot Images')
         block = 0
 
@@ -418,7 +403,6 @@ class Util:
         print("Checked %d blocks" % (block))
 
     def ubootImages(self):
-        """TODO"""
         seq = 0
         for pageno in range(0, self.FlashImageIO.SrcImage.PageCount, self.FlashImageIO.SrcImage.PagePerBlock):
             data = self.FlashImageIO.SrcImage.ReadPage(pageno)
