@@ -321,65 +321,63 @@ class IO:
         fd.close()
         wfd.close()
 
-    def ExtractPagesByOffset(self, output_filename, start = 0, end = -1, remove_oob = True):
+    def ExtractPagesByOffset(self, output_filename, start_offset = 0, end_offset = -1, remove_oob = True):
         """TODO"""
-        if start == -1:
-            start = 0
+        if start_offset == -1:
+            start_offset = 0
 
-        if end == -1:
-            end = self.SrcImage.RawBlockSize*self.SrcImage.BlockCount
+        if end_offset == -1:
+            end_offset = self.SrcImage.RawBlockSize * self.SrcImage.BlockCount
 
-        wfd = open(output_filename, 'wb')
+        print('ExtractPagesByOffset: 0x%x - 0x%x -> %s' % (start_offset, end_offset, output_filename))
 
-        start_block = int(start / self.SrcImage.RawBlockSize)
-        start_block_offset = start % self.SrcImage.RawBlockSize
+        start_block = int(start_offset / self.SrcImage.RawBlockSize)
+        start_block_offset = start_offset % self.SrcImage.RawBlockSize
         start_page = int(start_block_offset / self.SrcImage.RawPageSize)
         start_page_offset = start_block_offset % self.SrcImage.RawPageSize
 
-        end_block = int(end / self.SrcImage.RawBlockSize)
-        end_block_offset = end % self.SrcImage.RawBlockSize
+        end_block = int(end_offset / self.SrcImage.RawBlockSize)
+        end_block_offset = end_offset % self.SrcImage.RawBlockSize
         end_page = int(end_block_offset / self.SrcImage.RawPageSize)
         end_page_offset = end_block_offset % self.SrcImage.RawPageSize
 
         print('Dumping blocks (Block: 0x%x Offset: 0x%x ~  Block: 0x%x Offset: 0x%x)' % (start_block, start_block_offset, end_block, end_block_offset))
-        print('0x%x - 0x%x' % (start, end))
 
-        for block in range(start_block, end_block+1, 1):
-            ret = self.CheckBadBlock(block)
+        with open(output_filename, 'wb') as wfd:
+            output_bytes = ''
+            for block in range(start_block, end_block+1, 1):
+                ret = self.CheckBadBlock(block)
+                if ret == self.CLEAN_BLOCK:
+                    current_start_page = 0
+                    current_end_page = self.SrcImage.PagePerBlock
 
-            if ret == self.CLEAN_BLOCK:
-                current_start_page = 0
-                current_end_page = self.SrcImage.PagePerBlock
+                    if block == start_block:
+                        current_start_page = start_page
+                    elif block == end_block:
+                        current_end_page = end_page+1
 
-                if block == start_block:
-                    current_start_page = start_page
-                elif block == end_block:
-                    current_end_page = end_page+1
+                    for page in range(current_start_page, current_end_page, 1):
+                        pageno = block * self.SrcImage.PagePerBlock + page
+                        data = self.SrcImage.ReadPage(pageno)
 
-                for page in range(current_start_page, current_end_page, 1):
-                    data = self.SrcImage.ReadPage(block * self.SrcImage.PagePerBlock + page)
+                        if not data:
+                            break
 
-                    if not remove_oob:
-                        write_size = self.SrcImage.RawPageSize
-                    else:
-                        write_size = self.SrcImage.PageSize
+                        if not remove_oob:
+                            write_size = self.SrcImage.RawPageSize
+                        else:
+                            write_size = self.SrcImage.PageSize
 
-                    if block == start_block and page == current_start_page and start_page_offset > 0:
-                        wfd.write(data[start_page_offset:write_size])
-
-                    elif block == end_block and page == current_end_page-1 and end_page_offset >= 0:
-                        wfd.write(data[0:end_page_offset])
-
-                    else:
-                        wfd.write(data[0:write_size])
-
-            elif ret == self.ERROR:
-                break
-
-            else:
-                print("Skipping block %d" % block)
-
-        wfd.close()
+                        if block == start_block and page == current_start_page and start_page_offset > 0:
+                            wfd.write(data[start_page_offset: write_size])
+                        elif block == end_block and page == current_end_page-1 and end_page_offset >= 0:
+                            wfd.write(data[0: end_page_offset])
+                        else:
+                            wfd.write(data[0: write_size])
+                elif ret == self.ERROR:
+                    break
+                else:
+                    print("Skipping block %d" % block)
 
     def ExtractPages(self, output_filename, start_page = 0, end_page = -1, remove_oob = True):
         """TODO"""
@@ -387,11 +385,11 @@ class IO:
             start_page = 0
 
         if end_page == -1:
-            end = self.SrcImage.BlockSize*self.SrcImage.RawPageSize*self.SrcImage.PagePerBlock
+            end_offset = self.SrcImage.BlockSize * self.SrcImage.RawPageSize * self.SrcImage.PagePerBlock
         else:
-            end = end_page * self.SrcImage.RawPageSize
+            end_offset = end_page * self.SrcImage.RawPageSize
 
-        return self.ExtractPagesByOffset(output_filename, start_page * self.SrcImage.RawPageSize, end, remove_oob)
+        return self.ExtractPagesByOffset(output_filename, start_page * self.SrcImage.RawPageSize, end_offset, remove_oob)
 
     def readData(self, start_page, length, filename = ''):
         """TODO"""

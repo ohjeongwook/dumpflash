@@ -7,7 +7,7 @@ import flashimage
 
 parser = OptionParser()
 
-parser.add_option("-c", dest = "command", default = "information", help = "Command (i[nformation], r[ead], w[rite], erase, e[xtract], extract_pages, add_oob, check_ecc, find_uboot, dump_uboot,find_jffs2, dump_jffs2, check_bad_blocks)")
+parser.add_option("-c", dest = "command", default = "information", help = "Command (i[nformation], r[ead], w[rite], erase, e[xtract], extract_pages, add_oob, remove_oob, check_ecc, find_uboot, dump_uboot,find_jffs2, dump_jffs2, check_bad_blocks)")
 parser.add_option("-i", dest = "raw_image_filename", default = '', help = "Use file instead of device for operations")
 parser.add_option("-o", dest = "output_filename", default = 'output.dmp', help = "Output filename")
 
