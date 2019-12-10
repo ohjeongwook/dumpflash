@@ -386,6 +386,63 @@ class uImage:
         self.ParseFile(output_filename)
         self.FixHeader()
 
+class Util:
+    def __init__(self, flash_image_io):
+        self.FlashImageIO = flash_image_io
+
+    def FindUBootImages(self):
+        """TODO"""
+        print('Finding U-Boot Images')
+        block = 0
+
+        while 1:
+            ret = self.FlashImageIO.CheckBadBlock(block)
+
+            if ret == self.FlashImageIO.BAD_BLOCK:
+                pass
+            elif ret == self.FlashImageIO.ERROR:
+                break
+
+            magic = self.FlashImageIO.SrcImage.ReadPage(block*self.FlashImageIO.SrcImage.PagePerBlock)[0:4]
+
+            if magic == b'\x27\x05\x19\x56':
+                uimage = uImage()
+                uimage.ParseHeader(self.FlashImageIO.ExtractData(block * self.FlashImageIO.SrcImage.PagePerBlock, 64))
+                block_size = uimage.size / self.FlashImageIO.SrcImage.BlockSize
+                print('\nU-Boot Image found at block %d ~ %d (0x%x ~ 0x%x)' % (block, block+block_size, block, block+block_size))
+                uimage.DumpHeader()
+                print('')
+
+            block += 1
+
+        print("Checked %d blocks" % (block))
+
+    def ubootImages(self):
+        """TODO"""
+        seq = 0
+        for pageno in range(0, self.FlashImageIO.SrcImage.PageCount, self.FlashImageIO.SrcImage.PagePerBlock):
+            data = self.FlashImageIO.SrcImage.ReadPage(pageno)
+
+            if data[0:4] == b'\x27\x05\x19\x56':
+                print('U-Boot Image found at block 0x%x' % (pageno / self.FlashImageIO.SrcImage.PagePerBlock))
+                uimage = uImage()
+                uimage.ParseHeader(data[0:0x40])
+                uimage.DumpHeader()
+
+                output_filename = 'U-Boot-%.2d.dmp' % seq
+                seq += 1
+
+                try:
+                    os.unlink(output_filename)
+                except:
+                    pass
+                self.FlashImageIO.ExtractData(pageno, 0x40 + uimage.size, output_filename)
+                print('')
+
+                uimage = uImage()
+                uimage.ParseFile(output_filename)
+                uimage.Extract()
+
 if __name__ == '__main__':
 
     from optparse import OptionParser

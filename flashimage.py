@@ -126,7 +126,7 @@ class IO:
             bad_block_marker = oob[6:7]
             if not bad_block_marker:
                 return self.ERROR
-
+            
             if bad_block_marker == b'\xff':
                 return self.CLEAN_BLOCK
 
@@ -391,7 +391,7 @@ class IO:
 
         return self.ExtractPagesByOffset(output_filename, start_page * self.SrcImage.RawPageSize, end_offset, remove_oob)
 
-    def readData(self, start_page, length, filename = ''):
+    def ExtractData(self, start_page, length, filename = ''):
         """TODO"""
         start_block = start_page / self.SrcImage.PagePerBlock
         start_block_page = start_page % self.SrcImage.PagePerBlock
@@ -442,154 +442,3 @@ class IO:
         self.DumpProgress = True
         return data[0:length]
 
-
-    def FindUBootImages(self):
-        """TODO"""
-        print('Finding U-Boot Images')
-        block = 0
-
-        while 1:
-            ret = self.CheckBadBlock(block)
-
-            if ret == self.BAD_BLOCK:
-                pass
-            elif ret == self.ERROR:
-                break
-
-            magic = self.SrcImage.ReadPage(block*self.SrcImage.PagePerBlock)[0:4]
-
-            if magic == b'\x27\x05\x19\x56':
-                uimage = uboot.uImage()
-                uimage.ParseHeader(self.readData(block*self.SrcImage.PagePerBlock, 64))
-                block_size = uimage.size / self.SrcImage.BlockSize
-                print('\nU-Boot Image found at block %d ~ %d (0x%x ~ 0x%x)' % (block, block+block_size, block, block+block_size))
-                uimage.DumpHeader()
-                print('')
-
-            block += 1
-
-        print("Checked %d blocks" % (block))
-
-    def ubootImages(self):
-        """TODO"""
-        seq = 0
-        for pageno in range(0, self.SrcImage.PageCount, self.SrcImage.PagePerBlock):
-            data = self.SrcImage.ReadPage(pageno)
-
-            if data[0:4] == b'\x27\x05\x19\x56':
-                print('U-Boot Image found at block 0x%x' % (pageno / self.SrcImage.PagePerBlock))
-                uimage = uboot.uImage()
-                uimage.ParseHeader(data[0:0x40])
-                uimage.DumpHeader()
-
-                output_filename = 'U-Boot-%.2d.dmp' % seq
-                seq += 1
-
-                try:
-                    os.unlink(output_filename)
-                except:
-                    pass
-                self.readData(pageno, 0x40+uimage.size, output_filename)
-                print('')
-
-                uimage = uboot.uImage()
-                uimage.ParseFile(output_filename)
-                uimage.Extract()
-
-#    def IsJFFS2Block(self, block):
-#        """TODO"""
-#        ret = self.CheckBadBlock(block)
-#        if ret == self.CLEAN_BLOCK:
-#            page = 0
-#            block_offset = (block * self.SrcImage.RawBlockSize) + (page * self.SrcImage.RawPageSize)
-#            self.fd.seek(block_offset + self.SrcImage.PageSize)
-#            oob = self.fd.read(16)
-#
-#            if not oob:
-#                return 0
-#
-#            if oob[8:] == b'\x85\x19\x03\x20\x08\x00\x00\x00' and oob[0:3] != '\xff\xff\xff':
-#                return 2
-#
-#        elif ret == self.ERROR:
-#            return 0
-#        return 1
-
-    def FindJFFS2Blocks(self):
-        """TODO"""
-        #bad_blocks = {}
-        minimum_pageno = -1
-        maximum_pageno = -1
-        last_jffs2_page = -1
-
-        print('Find JFFS2: page count: 0x%x' % (self.SrcImage.PageCount))
-        for pageno in range(0, self.SrcImage.PageCount, self.SrcImage.PagePerBlock):
-            oob = self.SrcImage.ReadOOB(pageno)
-
-            if oob[8:] == b'\x85\x19\x03\x20\x08\x00\x00\x00':
-                print('JFFS2 block found:', pageno, pageno-last_jffs2_page)
-                last_jffs2_page = pageno
-
-                if minimum_pageno == -1:
-                    minimum_pageno = pageno
-                maximum_pageno = pageno
-            elif oob[0:3] == b'\xff\xff\xff':
-                print('blank page')
-            else:
-                print('OOB: ', pageno, pprint.pprint(oob))
-
-        return [minimum_pageno, maximum_pageno]
-
-
-    def FindJFFS2(self):
-        """TODO"""
-        start_block = -1
-        end_block = 0
-        jffs2_blocks = []
-
-        for block in range(0, self.SrcImage.BlockCount, 1):
-            ret = self.CheckBadBlock(block)
-            if ret == self.CLEAN_BLOCK:
-                oob = self.SrcImage.ReadOOB(block*self.SrcImage.PagePerBlock)
-
-                if not oob:
-                    break
-
-                if oob[8:] == b'\x85\x19\x03\x20\x08\x00\x00\x00':
-                    if start_block == -1:
-                        start_block = block
-                    distance_to_last_block = block - end_block
-                    if distance_to_last_block > 10:
-                        print('JFFS2 block found: %d ~ %d' % (start_block, block))
-                        jffs2_blocks.append([start_block, block])
-                        start_block = -1
-                    end_block = block
-
-            elif ret == self.ERROR:
-                break
-            else:
-                print('Bad block', block)
-
-        if start_block != -1:
-            jffs2_blocks.append([start_block, block])
-            print('JFFS2 block found: %d ~ %d' % (start_block, block))
-
-        return jffs2_blocks
-
-    def DumpJFFS2(self, name_prefix = ''):
-        """TODO"""
-        i = 0
-        for (start_block, end_block) in self.FindJFFS2():
-            print('Dumping %d JFFS2 block Block: %d - %d ...' % (i, start_block, end_block))
-            if name_prefix:
-                filename = '%s%.2d.dmp' % (name_prefix, i)
-            else:
-                filename = 'JFFS2-%.2d.dmp' % i
-
-            self.ReadPages(start_block*self.SrcImage.PagePerBlock, (end_block+1)*self.SrcImage.PagePerBlock, remove_oob = True, filename = filename, seq = self.UseSequentialMode)
-            i += 1
-
-if __name__ == '__main__':
-    f = sys.argv[1]
-    io = IO(f)
-    io.FindUBootImages()

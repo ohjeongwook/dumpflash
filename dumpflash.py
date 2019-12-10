@@ -4,6 +4,8 @@
 import sys
 from optparse import OptionParser
 import flashimage
+import jffs2
+import uboot
 
 parser = OptionParser()
 
@@ -50,40 +52,40 @@ if options.pages is not None:
     if len(options.pages) > 1:
         end_page = options.pages[1]
 
-flash_io = flashimage.IO(options.raw_image_filename, options.start_offset, options.length, options.page_size, options.oob_size, options.pages_per_block, options.slow)
+flash_image_io = flashimage.IO(options.raw_image_filename, options.start_offset, options.length, options.page_size, options.oob_size, options.pages_per_block, options.slow)
 
-if not flash_io.IsInitialized():
+if not flash_image_io.IsInitialized():
     print('Device not ready, aborting...')
     sys.exit(0)
 
-flash_io.SetUseAnsi(use_ansi)
+flash_image_io.SetUseAnsi(use_ansi)
 
 if options.blocks is not None:
     if not options.blocks:
-        start_page = options.blocks[0] * flash_io.SrcImage.PagePerBlock
+        start_page = options.blocks[0] * flash_image_io.SrcImage.PagePerBlock
     if len(options.blocks) > 1:
-        end_page = (options.blocks[1] + 1) * flash_io.SrcImage.PagePerBlock
+        end_page = (options.blocks[1] + 1) * flash_image_io.SrcImage.PagePerBlock
 
 if options.command[0] == 'i':
-    flash_io.SrcImage.DumpInfo()
+    flash_image_io.SrcImage.DumpInfo()
 
 elif options.command[0] == 'r':
-    flash_io.ReadPages(start_page, end_page, False, options.output_filename, seq = options.seq, raw_mode = options.raw_mode)
+    flash_image_io.ReadPages(start_page, end_page, False, options.output_filename, seq = options.seq, raw_mode = options.raw_mode)
 
 elif options.command[0] == 'add_oob':
     if options.raw_image_filename:
         print('Add OOB to %s' % (options.raw_image_filename))
-        flash_io.AddOOB(options.raw_image_filename, options.output_filename)
+        flash_image_io.AddOOB(options.raw_image_filename, options.output_filename)
 
 elif options.command == 'extract_pages':
     if options.raw_image_filename:
         print('Extract from pages(0x%x - 0x%x) to %s' % (start_page, end_page, options.output_filename))
-        flash_io.ExtractPages(options.output_filename, start_page, end_page, remove_oob = False)
+        flash_image_io.ExtractPages(options.output_filename, start_page, end_page, remove_oob = False)
 
 elif options.command[0] == 'e':
     if options.raw_image_filename:
         print('Extract data from pages(0x%x - 0x%x) to %s' % (start_page, end_page, options.output_filename))
-        flash_io.ExtractPages(options.output_filename, start_page, end_page, remove_oob = True)
+        flash_image_io.ExtractPages(options.output_filename, start_page, end_page, remove_oob = True)
 
 elif options.command[0] == 'w':
     filename = args[0]
@@ -105,26 +107,26 @@ elif options.command[0] == 'w':
 
         current_page = 0
         while 1:
-            cdata = cfd.read(flash_io.SrcImage.PageSize)
-            data = fd.read(flash_io.SrcImage.PageSize)
+            cdata = cfd.read(flash_image_io.SrcImage.PageSize)
+            data = fd.read(flash_image_io.SrcImage.PageSize)
 
             if not data:
                 break
 
             if cdata != data:
-                print('Changed Page:0x%x file_offset: 0x%x' % (start_page+current_page, options.start_offset + current_page*flash_io.SrcImage.PageSize))
-                current_block = current_page / flash_io.SrcImage.PagePerBlock
+                print('Changed Page:0x%x file_offset: 0x%x' % (start_page+current_page, options.start_offset + current_page*flash_image_io.SrcImage.PageSize))
+                current_block = current_page / flash_image_io.SrcImage.PagePerBlock
 
                 print('Erasing and re-programming Block: %d' % (current_block))
-                flash_io.SrcImage.EraseBlockByPage(current_page)
+                flash_image_io.SrcImage.EraseBlockByPage(current_page)
 
-                target_start_page = start_page+current_block*flash_io.SrcImage.PagePerBlock
-                target_end_page = target_start_page+flash_io.SrcImage.PagePerBlock-1
+                target_start_page = start_page+current_block*flash_image_io.SrcImage.PagePerBlock
+                target_end_page = target_start_page+flash_image_io.SrcImage.PagePerBlock-1
 
                 print('Programming Page: %d ~ %d' % (target_start_page, target_end_page))
-                flash_io.SrcImage.WritePages(
+                flash_image_io.SrcImage.WritePages(
                     filename, 
-                    options.start_offset + current_block*flash_io.SrcImage.PagePerBlock*flash_io.SrcImage.PageSize, 
+                    options.start_offset + current_block*flash_image_io.SrcImage.PagePerBlock*flash_image_io.SrcImage.PageSize, 
                     target_start_page, 
                     target_end_page, 
                     add_oob, 
@@ -132,38 +134,42 @@ elif options.command[0] == 'w':
                     raw_mode = options.raw_mode
                 )
 
-                current_page = (current_block+1)*flash_io.SrcImage.PagePerBlock+1
-                fd.seek(options.start_offset+current_page * flash_io.SrcImage.PageSize)
-                cfd.seek(options.start_offset+current_page * flash_io.SrcImage.PageSize)
+                current_page = (current_block+1)*flash_image_io.SrcImage.PagePerBlock+1
+                fd.seek(options.start_offset+current_page * flash_image_io.SrcImage.PageSize)
+                cfd.seek(options.start_offset+current_page * flash_image_io.SrcImage.PageSize)
 
             else:
                 current_page += 1
 
     else:
-        flash_io.SrcImage.WritePages(filename, options.start_offset, start_page, end_page, add_oob, add_jffs2_eraser_marker = add_jffs2_eraser_marker, raw_mode = options.raw_mode)
+        flash_image_io.SrcImage.WritePages(filename, options.start_offset, start_page, end_page, add_oob, add_jffs2_eraser_marker = add_jffs2_eraser_marker, raw_mode = options.raw_mode)
 
 elif options.command == 'erase':
     if options.blocks is not None:
         start = options.blocks[0]
         end = options.blocks[1]
-        flash_io.SrcImage.EraseBlock(start, end)
+        flash_image_io.SrcImage.EraseBlock(start, end)
     else:
-        flash_io.SrcImage.Erase()
+        flash_image_io.SrcImage.Erase()
 
 if options.command == 'check_bad_blocks':
-    flash_io.CheckBadBlocks()
+    flash_image_io.CheckBadBlocks()
 
 if options.command == 'check_ecc':
-    flash_io.CheckECC()
+    flash_image_io.CheckECC()
 
 elif options.command == 'find_uboot':
-    flash_io.FindUBootImages()
+    uboot_util = uboot.Util(flash_image_io)
+    uboot_util.FindUBootImages()
 
 elif options.command == 'dump_uboot':
-    flash_io.DumpUBootImages()
+    uboot_util = uboot.Util(flash_image_io)
+    uboot_util.DumpUBootImages()
 
 elif options.command == 'find_jffs2':
-    flash_io.FindJFFS2()
+    jffs2_util = jffs2.Util(flash_image_io)
+    jffs2_util.FindJFFS2()
 
 elif options.command == 'dump_jffs2':
-    flash_io.DumpJFFS2(options.name_prefix)
+    jffs2_util = jffs2.Util(flash_image_io)
+    jffs2_util.DumpJFFS2(options.name_prefix)
