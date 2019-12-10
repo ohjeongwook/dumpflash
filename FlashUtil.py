@@ -125,13 +125,6 @@ class FlashUtil:
             pageno = block * self.io.PagePerBlock + page
             print('pageno(%d) = block(%d) * PagePerBlock(%d) + page(%d)' % (pageno, block, self.io.PagePerBlock, page))
             oob = self.io.ReadOOB(pageno)
-
-            try:
-                import hexdump
-                hexdump.hexdump(oob)
-            except:
-                pass
-
             bad_block_marker = oob[6:7]
             if not bad_block_marker:
                 return self.ERROR
