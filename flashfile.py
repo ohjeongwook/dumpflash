@@ -52,7 +52,7 @@ class IO:
             if self.Length > 0:
                 self.FileSize = self.Length
             else:
-                self.FileSize = os.path.getsize(filename) - offset
+                self.FileSize = os.path.getsize(filename) - self.BaseOffset
 
         except:
             print('Can\'t open a file:', filename)
