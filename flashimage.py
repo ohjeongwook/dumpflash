@@ -111,7 +111,7 @@ class IO:
     BAD_BLOCK = 1
     ERROR = 2
 
-    def check_bad_block(self, block):
+    def __check_bad_block(self, block):
         for page in range(0, 2, 1):
             pageno = block * self.SrcImage.PagePerBlock + page
             oob = self.SrcImage.read_oob(pageno)
@@ -131,7 +131,7 @@ class IO:
 #        start_block = 0
 #        end_page = self.SrcImage.PageCount
         for block in range(self.SrcImage.BlockCount):
-            ret = self.check_bad_block(block)
+            ret = self.__check_bad_block(block)
 
             progress = (block+1)*100.0/self.SrcImage.BlockCount
             sys.stdout.write('Checking Bad Blocks %d%% Block: %d/%d at offset 0x%x\n' % (progress, block+1, self.SrcImage.BlockCount, (block * self.SrcImage.BlockSize)))
@@ -309,14 +309,14 @@ class IO:
         fd.close()
         wfd.close()
 
-    def extract_pages_by_offset(self, output_filename, start_offset = 0, end_offset = -1, remove_oob = True):
+    def __extract_pages_by_offset(self, output_filename, start_offset = 0, end_offset = -1, remove_oob = True):
         if start_offset == -1:
             start_offset = 0
 
         if end_offset == -1:
             end_offset = self.SrcImage.RawBlockSize * self.SrcImage.BlockCount
 
-        print('extract_pages_by_offset: 0x%x - 0x%x -> %s' % (start_offset, end_offset, output_filename))
+        print('__extract_pages_by_offset: 0x%x - 0x%x -> %s' % (start_offset, end_offset, output_filename))
 
         start_block = int(start_offset / self.SrcImage.RawBlockSize)
         start_block_offset = start_offset % self.SrcImage.RawBlockSize
@@ -375,7 +375,7 @@ class IO:
         else:
             end_offset = end_page * self.SrcImage.RawPageSize
 
-        return self.extract_pages_by_offset(output_filename, start_page * self.SrcImage.RawPageSize, end_offset, remove_oob)
+        return self.__extract_pages_by_offset(output_filename, start_page * self.SrcImage.RawPageSize, end_offset, remove_oob)
 
     def extract_data(self, start_page, length, filename = ''):
         start_block = start_page / self.SrcImage.PagePerBlock
