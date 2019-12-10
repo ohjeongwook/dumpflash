@@ -14,7 +14,7 @@ import ECC
 
 class FlashUtil:
     """TODO"""
-    def __init__(self, filename = '', page_size = 0x800, oob_size = 0x40, page_per_block = 0x40, slow = False):
+    def __init__(self, filename = '', base_offset = 0, length = 0, page_size = 0x800, oob_size = 0x40, page_per_block = 0x40, slow = False):
         """TODO"""
         self.UseAnsi = False
         self.UseSequentialMode = False
@@ -22,7 +22,7 @@ class FlashUtil:
         self.DumpProgressInterval = 1
 
         if filename:
-            self.io = FlashFile.FlashFile(filename, page_size, oob_size, page_per_block)
+            self.io = FlashFile.FlashFile(filename, base_offset = base_offset, length = length, page_size = page_size, oob_size = oob_size, page_per_block = page_per_block)
         else:
             self.io = FlashDevice.NandIO(slow)
 
@@ -121,9 +121,7 @@ class FlashUtil:
     def CheckBadBlock(self, block):
         """TODO"""
         for page in range(0, 2, 1):
-#            current_page = block * self.io.PagePerBlock + page
             pageno = block * self.io.PagePerBlock + page
-            print('pageno(%d) = block(%d) * PagePerBlock(%d) + page(%d)' % (pageno, block, self.io.PagePerBlock, page))
             oob = self.io.ReadOOB(pageno)
             bad_block_marker = oob[6:7]
             if not bad_block_marker:
@@ -167,6 +165,7 @@ class FlashUtil:
                 fd = open(filename, 'ab')
             else:
                 fd = open(filename, 'wb')
+
         if start_page == -1:
             start_page = 0
 

@@ -7,33 +7,23 @@ import FlashUtil
 
 parser = OptionParser()
 
-parser.add_option("-i", action = "store_true", dest = "information", default = False)
+parser.add_option("-c", dest = "command", default = "information", help = "Command (i[nformation], r[ead], w[rite], erase, e[xtract], extract_pages, add_oob, heck_ecc, find_uboot, dump_uboot,find_jffs2, dump_jffs2, check_bad_blocks)")
+parser.add_option("-i", dest = "raw_image_filename", default = '', help = "Use file instead of device for operations")
+parser.add_option("-o", dest = "output_filename", default = 'output.dmp', help = "Output filename")
 
-parser.add_option("-r", action = "store_true", dest = "read", default = False, help = "Read NAND Flash to a file")
-parser.add_option("-w", action = "store_true", dest = "write", default = False, help = "Write file to a NAND Flash")
-
-parser.add_option("-e", action = "store_true", dest = "erase", default = False, help = "Erase")
-parser.add_option("-B", action = "store_true", dest = "check_bad_blocks", default = False, help = "Check bad blocks")
+parser.add_option("-s", action = "store_true", dest = "seq", default = False, help = "Set sequential row read mode - some NAND models supports this")
+parser.add_option("-L", action = "store_true", dest = "slow", default = False, help = "Set clock FTDI chip at 12MHz instead of 60MHz")
 parser.add_option("-R", action = "store_true", dest = "raw_mode", default = False, help = "Raw mode - skip bad block before reading/writing")
-parser.add_option("-c", action = "store_true", dest = "check_ecc", default = False, help = "Check ECC")
-parser.add_option("-O", action = "store_true", dest = "add_oob", default = False, help = "Add OOB to the source")
-parser.add_option("--OJ", action = "store_true", dest = "add_jffs2_oob", default = False, help = "Add JFFS2 OOB to the source")
-parser.add_option("-o", action = "store_true", dest = "remove_oob", default = False, help = "Remove OOB from the source")
 
-parser.add_option("-u", action = "store_true", dest = "find_uboot_images", default = False, help = "Find U-Boot images")
-parser.add_option("-U", action = "store_true", dest = "dump_uboot_images", default = False, help = "Dump U-Boot images")
-
-parser.add_option("-j", action = "store_true", dest = "find_jffs2", default = False, help = "Find JFFS2 Image")
-parser.add_option("-J", action = "store_true", dest = "dump_jffs2", default = False, help = "Dump JFFS2 Image")
-parser.add_option("-n", dest = "name_prefix", default = '', help = "Set output file name prefix")
-
-parser.add_option("-s", action = "store_true", dest = "seq", default = False, help = "Set sequential row read mode - some NAND models supports")
-parser.add_option("-S", action = "store_true", dest = "slow", default = False, help = "Set clock FTDI chip at 12MHz instead of 60MHz")
-parser.add_option("-f", dest = "filename", default = '', help = "Use file instead of device for operations")
-
+parser.add_option("-j", action = "store_true", dest = "add_jffs2_oob", default = False, help = "Add JFFS2 OOB to the source")
 parser.add_option("-C", dest = "compare_target_filename", default = '', help = "When writing a file compare with this file before writing and write only differences", metavar = "COMPARE_TARGET_FILENAME")
 
+
+parser.add_option("-n", dest = "name_prefix", default = '', help = "Set output file name prefix")
+
 parser.add_option("-t", type = "int", default = 0, dest = "offset")
+parser.add_option("-l", type = "int", default = 0, dest = "length")
+
 parser.add_option("-p", type = "int", nargs = 2, dest = "pages")
 parser.add_option("-b", type = "int", nargs = 2, dest = "blocks")
 
@@ -62,7 +52,8 @@ if options.pages is not None:
     if len(options.pages) > 1:
         end_page = options.pages[1]
 
-flash_util = FlashUtil.FlashUtil(options.filename, options.page_size, options.oob_size, options.pages_per_block, options.slow)
+print("options.offset: %x" % options.offset)
+flash_util = FlashUtil.FlashUtil(options.raw_image_filename, options.offset, options.length, options.page_size, options.oob_size, options.pages_per_block, options.slow)
 
 if not flash_util.IsInitialized():
     print('Device not ready, aborting...')
@@ -76,33 +67,34 @@ if options.blocks is not None:
     if len(options.blocks) > 1:
         end_page = (options.blocks[1] + 1) * flash_util.io.PagePerBlock
 
-if options.information:
+if options.command[0] == 'i':
     flash_util.io.DumpInfo()
 
-if options.read:
-    flash_util.io.DumpInfo()
-    output_filename = args[0]
+elif options.command[0] == 'r':
+    flash_util.ReadPages(start_page, end_page, False, options.output_filename, seq = options.seq, raw_mode = options.raw_mode)
 
-    if options.filename:
-        if options.add_oob:
-            print('Add OOB to %s' % (options.filename))
-            flash_util.AddOOB(options.filename, output_filename)
-        else:
-            if options.remove_oob:
-                print('Removing OOB from pages(0x%x - 0x%x) to %s' % (start_page, end_page, output_filename))
-            else:
-                print('Copying OOB from pages(0x%x - 0x%x) to %s' % (start_page, end_page, output_filename))
+elif options.command[0] == 'add_oob':
+    if options.raw_image_filename:
+        print('Add OOB to %s' % (options.raw_image_filename))
+        flash_util.AddOOB(options.raw_image_filename, options.output_filename)
 
-            flash_util.CopyPages(output_filename, start_page, end_page, options.remove_oob)
-    else:
-        flash_util.ReadPages(start_page, end_page, options.remove_oob, output_filename, seq = options.seq, raw_mode = options.raw_mode)
+elif options.command == 'extract_pages':
+    if options.raw_image_filename:
+        print('Extract from pages(0x%x - 0x%x) to %s' % (start_page, end_page, options.output_filename))
+        flash_util.CopyPages(options.output_filename, start_page, end_page, remove_oob = False)
 
-if options.write:
+elif options.command[0] == 'e':
+    if options.raw_image_filename:
+        print('Extract data from pages(0x%x - 0x%x) to %s' % (start_page, end_page, options.output_filename))
+        flash_util.CopyPages(options.output_filename, start_page, end_page, remove_oob = True)
+
+elif options.command[0] == 'w':
     filename = args[0]
     add_oob = False
     add_jffs2_eraser_marker = False
-    if options.add_oob:
+    if options.command == 'add_oob':
         add_oob = True
+
     if options.add_jffs2_oob:
         add_oob = True
         add_jffs2_eraser_marker = True
@@ -153,7 +145,7 @@ if options.write:
     else:
         flash_util.io.WritePages(filename, options.offset, start_page, end_page, add_oob, add_jffs2_eraser_marker = add_jffs2_eraser_marker, raw_mode = options.raw_mode)
 
-if options.erase:
+elif options.command == 'erase':
     if options.blocks is not None:
         start = options.blocks[0]
         end = options.blocks[1]
@@ -161,20 +153,20 @@ if options.erase:
     else:
         flash_util.io.Erase()
 
-if options.check_bad_blocks:
+if options.command == 'check_bad_blocks':
     flash_util.CheckBadBlocks()
 
-if options.check_ecc:
+if options.command == 'check_ecc':
     flash_util.CheckECC()
 
-if options.find_uboot_images:
+elif options.command == 'find_uboot':
     flash_util.FindUBootImages()
 
-if options.dump_uboot_images:
+elif options.command == 'dump_uboot':
     flash_util.DumpUBootImages()
 
-if options.find_jffs2:
+elif options.command == 'find_jffs2':
     flash_util.FindJFFS2()
 
-if options.dump_jffs2:
+elif options.command == 'dump_jffs2':
     flash_util.DumpJFFS2(options.name_prefix)
