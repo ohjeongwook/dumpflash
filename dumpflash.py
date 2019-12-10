@@ -11,25 +11,23 @@ parser.add_option("-c", dest = "command", default = "information", help = "Comma
 parser.add_option("-i", dest = "raw_image_filename", default = '', help = "Use file instead of device for operations")
 parser.add_option("-o", dest = "output_filename", default = 'output.dmp', help = "Output filename")
 
-parser.add_option("-s", action = "store_true", dest = "seq", default = False, help = "Set sequential row read mode - some NAND models supports this")
+parser.add_option("-S", action = "store_true", dest = "seq", default = False, help = "Set sequential row read mode - some NAND models supports this")
 parser.add_option("-L", action = "store_true", dest = "slow", default = False, help = "Set clock FTDI chip at 12MHz instead of 60MHz")
 parser.add_option("-R", action = "store_true", dest = "raw_mode", default = False, help = "Raw mode - skip bad block before reading/writing")
 
 parser.add_option("-j", action = "store_true", dest = "add_jffs2_oob", default = False, help = "Add JFFS2 OOB to the source")
 parser.add_option("-C", dest = "compare_target_filename", default = '', help = "When writing a file compare with this file before writing and write only differences", metavar = "COMPARE_TARGET_FILENAME")
 
-
 parser.add_option("-n", dest = "name_prefix", default = '', help = "Set output file name prefix")
 
-parser.add_option("-t", type = "int", default = 0, dest = "offset")
+parser.add_option("-s", type = "int", default = 0, dest = "start_offset")
 parser.add_option("-l", type = "int", default = 0, dest = "length")
-
 parser.add_option("-p", type = "int", nargs = 2, dest = "pages")
 parser.add_option("-b", type = "int", nargs = 2, dest = "blocks")
 
 parser.add_option("-P", type = "int", default = 512, dest = "page_size")
-parser.add_option("-E", type = "int", default = 16, dest = "oob_size")
-parser.add_option("-K", type = "int", default = 32, dest = "pages_per_block")
+parser.add_option("-O", type = "int", default = 16, dest = "oob_size")
+parser.add_option("--bp", type = "int", default = 32, dest = "pages_per_block")
 
 (options, args) = parser.parse_args()
 
@@ -52,8 +50,7 @@ if options.pages is not None:
     if len(options.pages) > 1:
         end_page = options.pages[1]
 
-print("options.offset: %x" % options.offset)
-flash_io = flashimage.IO(options.raw_image_filename, options.offset, options.length, options.page_size, options.oob_size, options.pages_per_block, options.slow)
+flash_io = flashimage.IO(options.raw_image_filename, options.start_offset, options.length, options.page_size, options.oob_size, options.pages_per_block, options.slow)
 
 if not flash_io.IsInitialized():
     print('Device not ready, aborting...')
@@ -101,10 +98,10 @@ elif options.command[0] == 'w':
 
     if options.compare_target_filename != '':
         cfd = open(options.compare_target_filename, 'rb')
-        cfd.seek(options.offset)
+        cfd.seek(options.start_offset)
 
         fd = open(filename, 'rb')
-        fd.seek(options.offset)
+        fd.seek(options.start_offset)
 
         current_page = 0
         while 1:
@@ -115,7 +112,7 @@ elif options.command[0] == 'w':
                 break
 
             if cdata != data:
-                print('Changed Page:0x%x file_offset: 0x%x' % (start_page+current_page, options.offset + current_page*flash_io.SrcImage.PageSize))
+                print('Changed Page:0x%x file_offset: 0x%x' % (start_page+current_page, options.start_offset + current_page*flash_io.SrcImage.PageSize))
                 current_block = current_page / flash_io.SrcImage.PagePerBlock
 
                 print('Erasing and re-programming Block: %d' % (current_block))
@@ -127,7 +124,7 @@ elif options.command[0] == 'w':
                 print('Programming Page: %d ~ %d' % (target_start_page, target_end_page))
                 flash_io.SrcImage.WritePages(
                     filename, 
-                    options.offset + current_block*flash_io.SrcImage.PagePerBlock*flash_io.SrcImage.PageSize, 
+                    options.start_offset + current_block*flash_io.SrcImage.PagePerBlock*flash_io.SrcImage.PageSize, 
                     target_start_page, 
                     target_end_page, 
                     add_oob, 
@@ -136,14 +133,14 @@ elif options.command[0] == 'w':
                 )
 
                 current_page = (current_block+1)*flash_io.SrcImage.PagePerBlock+1
-                fd.seek(options.offset+current_page * flash_io.SrcImage.PageSize)
-                cfd.seek(options.offset+current_page * flash_io.SrcImage.PageSize)
+                fd.seek(options.start_offset+current_page * flash_io.SrcImage.PageSize)
+                cfd.seek(options.start_offset+current_page * flash_io.SrcImage.PageSize)
 
             else:
                 current_page += 1
 
     else:
-        flash_io.SrcImage.WritePages(filename, options.offset, start_page, end_page, add_oob, add_jffs2_eraser_marker = add_jffs2_eraser_marker, raw_mode = options.raw_mode)
+        flash_io.SrcImage.WritePages(filename, options.start_offset, start_page, end_page, add_oob, add_jffs2_eraser_marker = add_jffs2_eraser_marker, raw_mode = options.raw_mode)
 
 elif options.command == 'erase':
     if options.blocks is not None:
