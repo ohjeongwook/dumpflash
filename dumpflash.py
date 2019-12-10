@@ -8,11 +8,10 @@ import uboot
 
 parser = OptionParser()
 
-parser.add_option("-c", dest = "command", default = "information", help = "Command (i[nformation], r[ead], w[rite], erase, e[xtract], extract_pages, add_oob, remove_oob, check_ecc, find_uboot, dump_uboot,find_jffs2, dump_jffs2, check_bad_blocks)")
+parser.add_option("-c", dest = "command", default = "information", help = "Command (i[nformation], r[ead], s[equential_read], w[rite], erase, e[xtract], extract_pages, add_oob, remove_oob, check_ecc, find_uboot, dump_uboot,find_jffs2, dump_jffs2, check_bad_blocks)")
 parser.add_option("-i", dest = "raw_image_filename", default = '', help = "Use file instead of device for operations")
 parser.add_option("-o", dest = "output_filename", default = 'output.dmp', help = "Output filename")
 
-parser.add_option("-S", action = "store_true", dest = "seq", default = False, help = "Set sequential row read mode - some NAND models supports this")
 parser.add_option("-L", action = "store_true", dest = "slow", default = False, help = "Set clock FTDI chip at 12MHz instead of 60MHz")
 parser.add_option("-R", action = "store_true", dest = "raw_mode", default = False, help = "Raw mode - skip bad block before reading/writing")
 
@@ -68,8 +67,11 @@ if options.blocks is not None:
 if options.command[0] == 'i':
     flash_image_io.SrcImage.DumpInfo()
 
-elif options.command[0] == 'r':
-    flash_image_io.ReadPages(start_page, end_page, False, options.output_filename, seq = options.seq, raw_mode = options.raw_mode)
+elif options.command[0] == 'r' or options.command[0] == 's':
+    sequential_read = False
+    if options.command[0] == 's':
+        sequential_read = True
+    flash_image_io.ReadPages(start_page, end_page, False, options.output_filename, seq = sequential_read, raw_mode = options.raw_mode)
 
 elif options.command[0] == 'add_oob':
     if options.raw_image_filename:
