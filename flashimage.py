@@ -58,7 +58,7 @@ class IO:
                         fmt_str = 'Checking ECC %d%% (Page: %3d/%3d Block: %3d/%3d)\n'
                     sys.stdout.write(fmt_str % (progress, page, end_page, block, end_block))
 
-            #if self.check_bad_block(block) == self.BAD_BLOCK:
+            #if self.__check_bad_block(block) == self.BAD_BLOCK:
             #    print 'Bad Block: %d' % block
             #    print ''
 
@@ -316,7 +316,7 @@ class IO:
         if end_offset == -1:
             end_offset = self.SrcImage.RawBlockSize * self.SrcImage.BlockCount
 
-        print('__extract_pages_by_offset: 0x%x - 0x%x -> %s' % (start_offset, end_offset, output_filename))
+        print('Extraing pages: 0x%x - 0x%x -> %s' % (start_offset, end_offset, output_filename))
 
         start_block = int(start_offset / self.SrcImage.RawBlockSize)
         start_block_offset = start_offset % self.SrcImage.RawBlockSize
@@ -333,7 +333,7 @@ class IO:
         with open(output_filename, 'wb') as wfd:
             output_bytes = ''
             for block in range(start_block, end_block+1, 1):
-                ret = self.check_bad_block(block)
+                ret = self.__check_bad_block(block)
                 if ret == self.CLEAN_BLOCK:
                     current_start_page = 0
                     current_end_page = self.SrcImage.PagePerBlock
