@@ -23,7 +23,7 @@ class Calculator:
 
     DebugLevel = 0
 
-    def Calc(self, body):
+    def calc(self, body):
         p8 = 0
         p8_ = 0
         p16 = 0
@@ -113,7 +113,7 @@ class Calculator:
 
         return (ecc0 ^ 0xff, ecc1 ^ 0xff, ecc2 ^ 0xff)
 
-    def Calc2(self, body):
+    def calc2(self, body):
         par = 0
         rp0 = 0
         rp1 = 0

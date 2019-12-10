@@ -128,7 +128,7 @@ class uImage:
         self.comp = None
         self.name = None
 
-    def GetOSString(self, os):
+    def get_os_string(self, os):
         if os == self.IH_OS_INVALID:
             return self.IH_OS_STR_INVALID
         if os == self.IH_OS_OPENBSD:
@@ -173,7 +173,7 @@ class uImage:
             return self.IH_OS_STR_UNITY
         return ""
 
-    def GetArchString(self, arch):
+    def get_arch_string(self, arch):
         if arch == self.IH_CPU_INVALID:
             return self.IH_CPU_STR_INVALID
         if arch == self.IH_CPU_ALPHA:
@@ -213,7 +213,7 @@ class uImage:
 
         return 'Unknown'
 
-    def GetTypeString(self, type_string):
+    def get_type_string(self, type_string):
         if type_string == self.IH_TYPE_INVALID:
             return self.IH_TYPE_STR_INVALID
         if type_string == self.IH_TYPE_STANDALONE:
@@ -234,7 +234,7 @@ class uImage:
             return self.IH_TYPE_STR_FLATDT
         return ''
 
-    def GetCompString(self, comp):
+    def get_comp_string(self, comp):
         if comp == self.COMP_NONE:
             return 'None'
         if comp == self.COMP_GZIP:
@@ -243,18 +243,18 @@ class uImage:
             return 'bzip2'
         return None
 
-    def ParseFile(self, filename):
+    def parse_file(self, filename):
         self.filename = filename
         fd = open(self.filename, 'rb')
         header = fd.read(0x40)
         fd.close()
 
-        self.ParseHeader(header)
+        self.parse_header(header)
 
-    def ParseHeader(self, header):
+    def parse_header(self, header):
         (self.magic, self.hcrc, self.time, self.size, self.load, self.ep, self.dcrc, self.os, self.arch, self.type, self.comp, self.name) = struct.unpack(self.HEADER_PACK_STR, header)
 
-    def DumpHeader(self):
+    def dump_header(self):
         print('Magic:\t0x%x'% (self.magic))
         print('HCRC:\t0x%x'% (self.hcrc))
         print('Time:\t0x%x'% (self.time))
@@ -262,13 +262,13 @@ class uImage:
         print('Load:\t0x%x'% (self.load))
         print('EP:\t0x%x'% (self.ep))
         print('DCRC:\t0x%x'% (self.dcrc))
-        print('OS:\t0x%x (%s)'% (self.os, self.GetOSString(self.os)))
-        print('Arch:\t0x%x (%s)'% (self.arch, self.GetArchString(self.arch)))
-        print('Type:\t0x%x (%s)'% (self.type, self.GetTypeString(self.type)))
-        print('Comp:\t0x%x (%s)'% (self.comp, self.GetCompString(self.comp)))
+        print('OS:\t0x%x (%s)'% (self.os, self.get_os_string(self.os)))
+        print('Arch:\t0x%x (%s)'% (self.arch, self.get_arch_string(self.arch)))
+        print('Type:\t0x%x (%s)'% (self.type, self.get_type_string(self.type)))
+        print('Comp:\t0x%x (%s)'% (self.comp, self.get_comp_string(self.comp)))
         print('Name:\t%s'% (self.name))
 
-    def CheckCRC(self):
+    def check_crc(self):
         fd = open(self.filename, 'rb')
         header = fd.read(0x40)
         data = fd.read(self.size)
@@ -279,7 +279,7 @@ class uImage:
         print('%08X' % (zlib.crc32(new_header) & 0xFFFFFFFF))
         print('%08X' % (zlib.crc32(data) & 0xFFFFFFFF))
 
-    def FixHeader(self):
+    def fix_header(self):
         fd = open(self.filename, 'rb')
         header = fd.read(0x40)
         data = fd.read(self.size)
@@ -304,7 +304,7 @@ class uImage:
         fd.write(header)
         fd.close()
 
-    def Extract(self):
+    def extract(self):
         seq = 0
         if self.type == self.IH_TYPE_MULTI:
             fd = open(self.filename, 'rb')
@@ -343,7 +343,7 @@ class uImage:
                 wfd.write(data)
                 wfd.close()
 
-    def Merge(self, header_file, files, output_filename):
+    def merge(self, header_file, files, output_filename):
         fd = open(header_file, 'rb')
         header = fd.read(0x40)
         fd.close()
@@ -369,14 +369,14 @@ class uImage:
             ofd.write(struct.pack('>L', length))
         ofd.close()
 
-        self.ParseFile(output_filename)
-        self.FixHeader()
+        self.parse_file(output_filename)
+        self.fix_header()
 
 class Util:
     def __init__(self, flash_image_io):
         self.FlashImageIO = flash_image_io
 
-    def Find(self):
+    def find(self):
         print('Finding U-Boot Images')
         block = 0
 
@@ -388,30 +388,30 @@ class Util:
             elif ret == self.FlashImageIO.ERROR:
                 break
 
-            magic = self.FlashImageIO.SrcImage.ReadPage(block*self.FlashImageIO.SrcImage.PagePerBlock)[0:4]
+            magic = self.FlashImageIO.SrcImage.read_page(block*self.FlashImageIO.SrcImage.PagePerBlock)[0:4]
 
             if magic == b'\x27\x05\x19\x56':
                 uimage = uImage()
-                uimage.ParseHeader(self.FlashImageIO.ExtractData(block * self.FlashImageIO.SrcImage.PagePerBlock, 64))
+                uimage.parse_header(self.FlashImageIO.extract_data(block * self.FlashImageIO.SrcImage.PagePerBlock, 64))
                 block_size = uimage.size / self.FlashImageIO.SrcImage.BlockSize
                 print('\nU-Boot Image found at block %d ~ %d (0x%x ~ 0x%x)' % (block, block+block_size, block, block+block_size))
-                uimage.DumpHeader()
+                uimage.dump_header()
                 print('')
 
             block += 1
 
         print("Checked %d blocks" % (block))
 
-    def Dump(self):
+    def dump(self):
         seq = 0
         for pageno in range(0, self.FlashImageIO.SrcImage.PageCount, self.FlashImageIO.SrcImage.PagePerBlock):
-            data = self.FlashImageIO.SrcImage.ReadPage(pageno)
+            data = self.FlashImageIO.SrcImage.read_page(pageno)
 
             if data[0:4] == b'\x27\x05\x19\x56':
                 print('U-Boot Image found at block 0x%x' % (pageno / self.FlashImageIO.SrcImage.PagePerBlock))
                 uimage = uImage()
-                uimage.ParseHeader(data[0:0x40])
-                uimage.DumpHeader()
+                uimage.parse_header(data[0:0x40])
+                uimage.dump_header()
 
                 output_filename = 'U-Boot-%.2d.dmp' % seq
                 seq += 1
@@ -420,12 +420,12 @@ class Util:
                     os.unlink(output_filename)
                 except:
                     pass
-                self.FlashImageIO.ExtractData(pageno, 0x40 + uimage.size, output_filename)
+                self.FlashImageIO.extract_data(pageno, 0x40 + uimage.size, output_filename)
                 print('')
 
                 uimage = uImage()
-                uimage.ParseFile(output_filename)
-                uimage.Extract()
+                uimage.parse_file(output_filename)
+                uimage.extract()
 
 if __name__ == '__main__':
 
@@ -447,19 +447,19 @@ if __name__ == '__main__':
     uimage = uImage()
 
     if options.fix_header:
-        uimage.ParseFile(f)
-        uimage.DumpHeader()
-        uimage.FixHeader()
+        uimage.parse_file(f)
+        uimage.dump_header()
+        uimage.fix_header()
 
     elif options.check_crc:
-        uimage.ParseFile(f)
-        uimage.DumpHeader()
-        uimage.CheckCRC()
+        uimage.parse_file(f)
+        uimage.dump_header()
+        uimage.check_crc()
 
     elif options.extract:
-        uimage.ParseFile(f)
-        uimage.DumpHeader()
-        uimage.Extract()
+        uimage.parse_file(f)
+        uimage.dump_header()
+        uimage.extract()
 
     elif options.merge:
-        uimage.Merge(options.header_file, args, options.output_filename)
+        uimage.merge(options.header_file, args, options.output_filename)

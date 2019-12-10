@@ -69,7 +69,7 @@ class JFFS:
         self.DirentMap = {}
         self.OrigFilename = None
 
-    def Parse(self, filename, target_filename = ''):
+    def parse(self, filename, target_filename = ''):
         self.OrigFilename = filename
         fd = open(filename, 'rb')
         data = fd.read()
@@ -243,7 +243,7 @@ class JFFS:
         if self.DebugLevel > 0:
             pprint.pprint(self.DirentMap)
 
-    def GetPath(self, ino):
+    def get_path(self, ino):
         path = ''
 
         while ino != 0 and ino in self.DirentMap:
@@ -252,7 +252,7 @@ class JFFS:
 
         return path
 
-    def ReadFileData(self, inode_map_record, dump = False):
+    def read_file_data(self, inode_map_record, dump = False):
         data = []
         for record in inode_map_record:
             if dump:
@@ -273,7 +273,7 @@ class JFFS:
 
         return ''.join(data)
 
-    def ReadFileDataSeq(self, inode_map_record, dump = False):
+    def read_file_seq_data(self, inode_map_record, dump = False):
         next_offset = 0
         data = ''
 
@@ -290,7 +290,7 @@ class JFFS:
 
         return data
 
-    def WriteData(self, output_filename, inode_map_record, data):
+    def write_data(self, output_filename, inode_map_record, data):
         shutil.copy(self.OrigFilename, output_filename)
 
         next_offset = 0
@@ -350,28 +350,28 @@ class JFFS:
 
         return data
 
-    def DumpFile(self, filename, mod = '', out = ''):
-        print('DumpFile')
+    def dump_file(self, filename, mod = '', out = ''):
+        print('dump_file')
         for ino in list(self.DirentMap.keys()):
             if ino in self.INodeMap:
-                path = self.GetPath(ino)
+                path = self.get_path(ino)
 
                 if path == filename:
                     print('')
                     print(' = '*80)
-                    print(ino, self.GetPath(ino), len(self.DirentMap[ino]['payload']))
+                    print(ino, self.get_path(ino), len(self.DirentMap[ino]['payload']))
                     pprint.pprint(self.DirentMap[ino])
 
-                    data = self.ReadFileData(self.INodeMap[ino])
+                    data = self.read_file_data(self.INodeMap[ino])
                     print(data)
 
                     if mod != '':
                         fd = open(mod, 'rb')
-                        self.WriteData(out, self.INodeMap[ino], fd.read())
+                        self.write_data(out, self.INodeMap[ino], fd.read())
                         fd.close()
 
-    def DumpIno(self, output_dir, ino, target_filename = ''):
-        path = self.GetPath(ino)
+    def dump_info(self, output_dir, ino, target_filename = ''):
+        path = self.get_path(ino)
 
         directory = os.path.dirname(path)
         basename = os.path.basename(path)
@@ -392,7 +392,7 @@ class JFFS:
         if dump:
             print('File %s (ino: %d)' % (path, ino))
 
-        data = self.ReadFileData(self.INodeMap[ino], dump = dump)
+        data = self.read_file_data(self.INodeMap[ino], dump = dump)
 
         if dump:
             print('\tFile length: %d' % (len(data)))
@@ -412,7 +412,7 @@ class JFFS:
             except:
                 print('Failed to create file: %s' % (local_path))
 
-    def Dump(self, output_dir, target_filename = ''):
+    def dump(self, output_dir, target_filename = ''):
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
 
@@ -420,13 +420,13 @@ class JFFS:
         for ino in list(self.DirentMap.keys()):
             if ino in self.INodeMap:
                 processed_ino[ino] = True
-                self.DumpIno(output_dir, ino, target_filename)
+                self.dump_info(output_dir, ino, target_filename)
 
         for ino in list(self.INodeMap.keys()):
             if ino not in processed_ino:
-                self.DumpIno(output_dir, ino, target_filename)
+                self.dump_info(output_dir, ino, target_filename)
 
-    def ListData(self, inode_map_record):
+    def list_data(self, inode_map_record):
         for record in inode_map_record:
             print('version: 0x%x' % record['version'])
             print('\toffset: 0x%x' % record['offset'])
@@ -436,23 +436,23 @@ class JFFS:
             print('\tmtime: 0x%x' % record['mtime'])
             print('\tatime: 0x%x' % record['atime'])
 
-    def ListFile(self, filename):
+    def list_file(self, filename):
         print('Path\tInode\tNumber of records')
         for ino in list(self.DirentMap.keys()):
             if ino in self.INodeMap:
                 if filename == '':
-                    print(self.GetPath(ino))
+                    print(self.get_path(ino))
                     print('\tInode:', ino)
                     print('\tRecords:', len(self.INodeMap[ino]))
                 else:
-                    path = self.GetPath(ino)
+                    path = self.get_path(ino)
                     if path == filename:
-                        print(self.GetPath(ino))
+                        print(self.get_path(ino))
                         print('\tInode:', ino)
                         print('\tRecords:', len(self.INodeMap[ino]))
-                        self.ListData(self.INodeMap[ino])
+                        self.list_data(self.INodeMap[ino])
 
-    def MakeInode(
+    def make_inode(
             self, 
             ino = 0x683, 
             version = 0x1da, 
@@ -508,7 +508,7 @@ class JFFS:
 
         return data
 
-    def MakeInodeWithHeader(self, header, payload):
+    def make_inode_with_header(self, header, payload):
         (magic, nodetype, totlen) = struct.unpack(header_unpack_fmt, header[0:header_struct_size])
 
         print('magic: %X' % (magic))
@@ -536,7 +536,7 @@ class JFFS:
         print('data_crc: %X' % (data_crc))
         print('node_crc: %X' % (node_crc))
 
-        return self.MakeInode(
+        return self.make_inode(
             ino = ino, 
             version = version, 
             mode = mode, 
@@ -554,7 +554,7 @@ class JFFS:
             payload = payload
         )
 
-    def MakeInodeWithHeaderFile(self, header_file, payload_file):
+    def make_inode_with_header_file(self, header_file, payload_file):
         fd = open(header_file, 'rb')
         header = fd.read()[0:header_struct_size+inode_struct_size]
         fd.close()
@@ -563,10 +563,10 @@ class JFFS:
         payload = fd.read()
         fd.close()
 
-        return self.MakeInodeWithHeader(header, payload)
+        return self.make_inode_with_header(header, payload)
 
-    def WriteIno(self, ino, target_filename, offset, size, new_data_filename, output_filename):
-        path = self.GetPath(ino)
+    def write_ino(self, ino, target_filename, offset, size, new_data_filename, output_filename):
+        path = self.get_path(ino)
 
 #        directory = os.path.dirname(path)
 #        basename = os.path.basename(path)
@@ -592,7 +592,7 @@ class JFFS:
 
                     new_data = zlib.compress(data)
 
-                    new_inode = self.MakeInode(
+                    new_inode = self.make_inode(
                         ino = record['ino'], 
                         version = record['version'], 
                         mode = record['mode'], 
@@ -637,16 +637,16 @@ class JFFS:
                         fd.write(new_inode)
                         fd.close()
 
-    def WriteFile(self, target_filename, new_data_filename, offset, size, output_filename):
+    def write_file(self, target_filename, new_data_filename, offset, size, output_filename):
         processed_ino = {}
         for ino in list(self.DirentMap.keys()):
             if ino in self.INodeMap:
                 processed_ino[ino] = True
-                self.WriteIno(ino, target_filename, offset, size, new_data_filename, output_filename)
+                self.write_ino(ino, target_filename, offset, size, new_data_filename, output_filename)
 
         for ino in list(self.INodeMap.keys()):
             if ino not in processed_ino:
-                self.WriteIno(ino, target_filename, offset, size, new_data_filename, output_filename)
+                self.write_ino(ino, target_filename, offset, size, new_data_filename, output_filename)
 
 if __name__ == '__main__':
     from optparse import OptionParser
@@ -681,19 +681,19 @@ if __name__ == '__main__':
     jffs2_filename = args[0]
 
     jffs = JFFS()
-    jffs.Parse(jffs2_filename, target_filename = options.target_filename)
+    jffs.parse(jffs2_filename, target_filename = options.target_filename)
     jffs.DebugLevel = options.debug
 
 
     if options.list:
-        jffs.ListFile(options.file)
+        jffs.list_file(options.file)
 
     elif options.new_data_filename != '':
-        jffs.WriteFile(options.target_filename, options.new_data_filename, options.offset, options.size, options.output_filename)
+        jffs.write_file(options.target_filename, options.new_data_filename, options.offset, options.size, options.output_filename)
 
     elif options.output_dir != '':
         print('Dumping files to a folder: %s' % (options.output_dir))
-        jffs.Dump(options.output_dir, target_filename = options.target_filename)
+        jffs.dump(options.output_dir, target_filename = options.target_filename)
 
     elif options.file != '' and options.output_filename != '':
-        jffs.DumpFile(options.target_filename, options.new_data_filename, options.output_filename)
+        jffs.dump_file(options.target_filename, options.new_data_filename, options.output_filename)

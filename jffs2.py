@@ -15,7 +15,7 @@ class Util:
     def __init__(self, flash_image_io):
         self.FlashImageIO = flash_image_io
 
-    def FindJFFS2Blocks(self):
+    def find_blocks(self):
         #bad_blocks = {}
         minimum_pageno = -1
         maximum_pageno = -1
@@ -23,7 +23,7 @@ class Util:
 
         print('Find JFFS2: page count: 0x%x' % (self.FlashImageIO.SrcImage.PageCount))
         for pageno in range(0, self.FlashImageIO.SrcImage.PageCount, self.FlashImageIO.SrcImage.PagePerBlock):
-            oob = self.FlashImageIO.SrcImage.ReadOOB(pageno)
+            oob = self.FlashImageIO.SrcImage.read_oob(pageno)
 
             if oob[8:] == b'\x85\x19\x03\x20\x08\x00\x00\x00':
                 print('JFFS2 block found:', pageno, pageno-last_jffs2_page)
@@ -39,7 +39,7 @@ class Util:
 
         return [minimum_pageno, maximum_pageno]
 
-    def Find(self):
+    def find(self):
         start_block = -1
         end_block = 0
         jffs2_blocks = []
@@ -50,7 +50,7 @@ class Util:
             ret = self.FlashImageIO.CLEAN_BLOCK
 
             if ret == self.FlashImageIO.CLEAN_BLOCK:
-                oob = self.FlashImageIO.SrcImage.ReadOOB( block * self.FlashImageIO.SrcImage.PagePerBlock)
+                oob = self.FlashImageIO.SrcImage.read_oob( block * self.FlashImageIO.SrcImage.PagePerBlock)
 
                 if not oob:
                     break
@@ -76,7 +76,7 @@ class Util:
 
         return jffs2_blocks
 
-    def Dump(self, name_prefix = ''):
+    def dump(self, name_prefix = ''):
         i = 0
         for (start_block, end_block) in self.FindJFFS2():
             print('Dumping %d JFFS2 block Block: %d - %d ...' % (i, start_block, end_block))
@@ -85,7 +85,7 @@ class Util:
             else:
                 filename = 'JFFS2-%.2d.dmp' % i
 
-            self.FlashImageIO.ReadPages(
+            self.FlashImageIO.read_pages(
                 start_block * self.FlashImageIO.SrcImage.PagePerBlock,
                 (end_block+1) * self.FlashImageIO.SrcImage.PagePerBlock,
                 remove_oob = True,

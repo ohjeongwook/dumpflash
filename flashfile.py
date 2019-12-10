@@ -10,19 +10,19 @@ class IO:
         self.BaseOffset = base_offset
         self.Length = length
 
-        self.Open(filename)
-        self.SetPageInfo(page_size, oob_size, page_per_block)
+        self.open(filename)
+        self.set_page_info(page_size, oob_size, page_per_block)
 
-    def IsInitialized(self):
+    def is_initialized(self):
         return True
 
-    def DumpInfo(self):
+    def dump_info(self):
         return ""
 
-    def SetUseAnsi(self, use_ansi):
+    def set_use_ansi(self, use_ansi):
         self.UseAnsi = use_ansi
 
-    def SetPageInfo(self, page_size, oob_size, page_per_block):
+    def set_page_info(self, page_size, oob_size, page_per_block):
         self.PageSize = page_size
         self.OOBSize = oob_size
         self.RawPageSize = self.PageSize+self.OOBSize
@@ -41,7 +41,7 @@ class IO:
         print('PageCount: 0x%x' % self.PageCount)        
         print('')
 
-    def Open(self, filename):
+    def open(self, filename):
         try:
             self.fd = open(filename, 'rb')
             if self.Length > 0:
@@ -54,17 +54,17 @@ class IO:
             return False
         return True
 
-    def Close(self):
+    def close(self):
         self.fd.close()
 
-    def GetBlockOffset(self, block):
+    def get_block_offset(self, block):
         return block * self.RawBlockSize
 
-    def GetPageOffset(self, pageno):
+    def get_page_offset(self, pageno):
         return pageno * self.RawPageSize
 
-    def ReadPage(self, pageno, remove_oob = False):
-        offset = self.GetPageOffset(pageno)
+    def read_page(self, pageno, remove_oob = False):
+        offset = self.get_page_offset(pageno)
 
         if offset > self.FileSize:
             return b''
@@ -75,6 +75,6 @@ class IO:
             return self.fd.read(self.PageSize)
         return self.fd.read(self.RawPageSize)
 
-    def ReadOOB(self, pageno):
+    def read_oob(self, pageno):
         self.fd.seek(self.BaseOffset + pageno*self.RawPageSize+self.PageSize)
         return self.fd.read(self.OOBSize)

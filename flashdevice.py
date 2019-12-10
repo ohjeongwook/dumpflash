@@ -52,16 +52,16 @@ class IO:
                 self.Ftdi.purge_buffers()
                 self.Ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x0, 0x1]))
 
-        self.WaitReady()
-        self.GetID()
+        self.wait_ready()
+        self.get_id()
 
-    def IsInitialized(self):
+    def is_initialized(self):
         return self.Identified
 
-    def SetUseAnsi(self, use_ansi):
+    def set_use_ansi(self, use_ansi):
         self.UseAnsi = use_ansi
 
-    def WaitReady(self):
+    def wait_ready(self):
         if self.Ftdi is None or not self.Ftdi.is_connected:
             return
 
@@ -79,7 +79,7 @@ class IO:
 
         return
 
-    def nandRead(self, cl, al, count):
+    def nand_read(self, cl, al, count):
         cmds = []
         cmd_type = 0
         if cl == 1:
@@ -98,14 +98,14 @@ class IO:
             return
 
         self.Ftdi.write_data(Array('B', cmds))
-        if self.getSlow():
+        if self.is_slow_mode():
             data = self.Ftdi.read_data_bytes(count*2)
             data = data[0:-1:2]
         else:
             data = self.Ftdi.read_data_bytes(count)
         return data.tobytes()
 
-    def nandWrite(self, cl, al, data):
+    def nand_write(self, cl, al, data):
         cmds = []
         cmd_type = 0
         if cl == 1:
@@ -127,32 +127,32 @@ class IO:
         self.Ftdi.write_data(Array('B', cmds))
 
     def sendCmd(self, cmd):
-        self.nandWrite(1, 0, chr(cmd))
+        self.nand_write(1, 0, chr(cmd))
 
-    def sendAddr(self, addr, count):
+    def send_address(self, addr, count):
         data = ''
 
         for _ in range(0, count, 1):
             data += chr(addr & 0xff)
             addr = addr>>8
 
-        self.nandWrite(0, 1, data)
+        self.nand_write(0, 1, data)
 
-    def Status(self):
+    def get_status(self):
         self.sendCmd(0x70)
-        status = self.readFlashData(1)[0]
+        status = self.read_flash_data(1)[0]
         return status
 
-    def readFlashData(self, count):
-        return self.nandRead(0, 0, count)
+    def read_flash_data(self, count):
+        return self.nand_read(0, 0, count)
 
-    def writeData(self, data):
-        return self.nandWrite(0, 0, data)
+    def write_data(self, data):
+        return self.nand_write(0, 0, data)
 
-    def getSlow(self):
+    def is_slow_mode(self):
         return self.Slow
 
-    def GetID(self):
+    def get_id(self):
         self.Name = ''
         self.ID = 0
         self.PageSize = 0
@@ -162,8 +162,8 @@ class IO:
         self.AddrCycles = 0
 
         self.sendCmd(flashdevice_defs.NAND_CMD_READID)
-        self.sendAddr(0, 1)
-        flash_identifiers = self.readFlashData(8)
+        self.send_address(0, 1)
+        flash_identifiers = self.read_flash_data(8)
 
         if not flash_identifiers:
             return False
@@ -179,16 +179,16 @@ class IO:
 
         #Check ONFI
         self.sendCmd(flashdevice_defs.NAND_CMD_READID)
-        self.sendAddr(0x20, 1)
-        onfitmp = self.readFlashData(4)
+        self.send_address(0x20, 1)
+        onfitmp = self.read_flash_data(4)
 
         onfi = (onfitmp == [0x4F, 0x4E, 0x46, 0x49])
 
         if onfi:
             self.sendCmd(flashdevice_defs.NAND_CMD_ONFI)
-            self.sendAddr(0, 1)
-            self.WaitReady()
-            onfi_data = self.readFlashData(0x100)
+            self.send_address(0, 1)
+            self.wait_ready()
+            onfi_data = self.read_flash_data(0x100)
             onfi = onfi_data[0:4] == [0x4F, 0x4E, 0x46, 0x49]
 
         if flash_identifiers[0] == 0x98:
@@ -223,7 +223,7 @@ class IO:
                 idstr = idstr[:-2]
         self.IDString = idstr
         self.IDLength = int(len(idstr) / 2)
-        self.BitsPerCell = self.GetBitsPerCell(flash_identifiers[2])
+        self.BitsPerCell = self.get_bits_per_cell(flash_identifiers[2])
         if self.PageSize == 0:
             extid = flash_identifiers[3]
             if ((self.IDLength == 6) and (self.Manufacturer == "Samsung") and (self.BitsPerCell > 1)):
@@ -295,12 +295,12 @@ class IO:
 
         return True
 
-    def GetBitsPerCell(self, cellinfo):
+    def get_bits_per_cell(self, cellinfo):
         bits = cellinfo & flashdevice_defs.NAND_CI_CELLTYPE_MSK
         bits >>= flashdevice_defs.NAND_CI_CELLTYPE_SHIFT
         return bits+1
 
-    def DumpInfo(self):
+    def dump_info(self):
         print('Full ID:\t', self.IDString)
         print('ID Length:\t', self.IDLength)
         print('Name:\t\t', self.Name)
@@ -317,7 +317,7 @@ class IO:
         print('Manufacturer:\t', self.Manufacturer)
         print('')
 
-    def CheckBadBlocks(self):
+    def check_bad_blocks(self):
         bad_blocks = {}
 #        end_page = self.PageCount
 
@@ -333,7 +333,7 @@ class IO:
             else:
                 sys.stdout.write('Checking bad blocks %d Block: %d/%d\n' % (curblock / self.BlockCount*100.0, curblock, self.BlockCount))
             for pageoff in range(0, 2, 1):
-                oob = self.ReadOOB(page+pageoff)
+                oob = self.read_oob(page+pageoff)
 
                 if oob[5] != b'\xff':
                     print('Bad block found:', block)
@@ -342,20 +342,20 @@ class IO:
         print('Checked %d blocks and found %d bad blocks' % (block+1, len(bad_blocks)))
         return bad_blocks
 
-    def ReadOOB(self, pageno):
+    def read_oob(self, pageno):
         bytes_to_send = []
         if self.Options & flashdevice_defs.LP_OPTIONS:
             self.sendCmd(flashdevice_defs.NAND_CMD_READ0)
-            self.sendAddr((pageno<<16), self.AddrCycles)
+            self.send_address((pageno<<16), self.AddrCycles)
             self.sendCmd(flashdevice_defs.NAND_CMD_READSTART)
-            self.WaitReady()
-            bytes_to_send += self.readFlashData(self.OOBSize)
+            self.wait_ready()
+            bytes_to_send += self.read_flash_data(self.OOBSize)
         else:
-            self.sendCmd(flashdevice_defs.NAND_CMD_READOOB)
-            self.WaitReady()
-            self.sendAddr(pageno<<8, self.AddrCycles)
-            self.WaitReady()
-            bytes_to_send += self.readFlashData(self.OOBSize)
+            self.sendCmd(flashdevice_defs.NAND_CMD_READ_OOB)
+            self.wait_ready()
+            self.send_address(pageno<<8, self.AddrCycles)
+            self.wait_ready()
+            bytes_to_send += self.read_flash_data(self.OOBSize)
 
         data = ''
 
@@ -363,12 +363,12 @@ class IO:
             data += chr(ch)
         return data
 
-    def ReadPage(self, pageno, remove_oob = False):
+    def read_page(self, pageno, remove_oob = False):
         bytes_to_read = bytearray()
 
         if self.Options & flashdevice_defs.LP_OPTIONS:
             self.sendCmd(flashdevice_defs.NAND_CMD_READ0)
-            self.sendAddr(pageno<<16, self.AddrCycles)
+            self.send_address(pageno<<16, self.AddrCycles)
             self.sendCmd(flashdevice_defs.NAND_CMD_READSTART)
             if self.PageSize > 0x1000:
                 length = self.PageSize + self.OOBSize
@@ -376,45 +376,45 @@ class IO:
                     read_len = 0x1000
                     if length < 0x1000:
                         read_len = length
-                    bytes_to_read += self.readFlashData(read_len)
+                    bytes_to_read += self.read_flash_data(read_len)
                     length -= 0x1000
             else:
-                bytes_to_read = self.readFlashData(self.PageSize+self.OOBSize)
+                bytes_to_read = self.read_flash_data(self.PageSize+self.OOBSize)
 
             #d: Implement remove_oob
         else:
             self.sendCmd(flashdevice_defs.NAND_CMD_READ0)
-            self.WaitReady()
-            self.sendAddr(pageno<<8, self.AddrCycles)
-            self.WaitReady()
-            bytes_to_read += self.readFlashData(self.PageSize/2)
+            self.wait_ready()
+            self.send_address(pageno<<8, self.AddrCycles)
+            self.wait_ready()
+            bytes_to_read += self.read_flash_data(self.PageSize/2)
 
             self.sendCmd(flashdevice_defs.NAND_CMD_READ1)
-            self.WaitReady()
-            self.sendAddr(pageno<<8, self.AddrCycles)
-            self.WaitReady()
-            bytes_to_read += self.readFlashData(self.PageSize/2)
+            self.wait_ready()
+            self.send_address(pageno<<8, self.AddrCycles)
+            self.wait_ready()
+            bytes_to_read += self.read_flash_data(self.PageSize/2)
 
             if not remove_oob:
-                self.sendCmd(flashdevice_defs.NAND_CMD_READOOB)
-                self.WaitReady()
-                self.sendAddr(pageno<<8, self.AddrCycles)
-                self.WaitReady()
-                bytes_to_read += self.readFlashData(self.OOBSize)
+                self.sendCmd(flashdevice_defs.NAND_CMD_READ_OOB)
+                self.wait_ready()
+                self.send_address(pageno<<8, self.AddrCycles)
+                self.wait_ready()
+                bytes_to_read += self.read_flash_data(self.OOBSize)
 
         return bytes_to_read
 
-    def ReadSeq(self, pageno, remove_oob = False, raw_mode = False):
+    def read_seq(self, pageno, remove_oob = False, raw_mode = False):
         page = []
         self.sendCmd(flashdevice_defs.NAND_CMD_READ0)
-        self.WaitReady()
-        self.sendAddr(pageno<<8, self.AddrCycles)
-        self.WaitReady()
+        self.wait_ready()
+        self.send_address(pageno<<8, self.AddrCycles)
+        self.wait_ready()
 
         bad_block = False
 
         for i in range(0, self.PagePerBlock, 1):
-            page_data = self.readFlashData(self.RawPageSize)
+            page_data = self.read_flash_data(self.RawPageSize)
 
             if i in (0, 1):
                 if page_data[self.PageSize + 5] != 0xff:
@@ -425,7 +425,7 @@ class IO:
             else:
                 page += page_data
 
-            self.WaitReady()
+            self.wait_ready()
 
         if self.Ftdi is None or not self.Ftdi.is_connected:
             return ''
@@ -443,39 +443,39 @@ class IO:
 
         return data
 
-    def EraseBlockByPage(self, pageno):
+    def erase_block_by_page(self, pageno):
         self.WriteProtect = False
         self.sendCmd(flashdevice_defs.NAND_CMD_ERASE1)
-        self.sendAddr(pageno, self.AddrCycles)
+        self.send_address(pageno, self.AddrCycles)
         self.sendCmd(flashdevice_defs.NAND_CMD_ERASE2)
-        self.WaitReady()
-        err = self.Status()
+        self.wait_ready()
+        err = self.get_status()
         self.WriteProtect = True
 
         return err
 
-    def WritePage(self, pageno, data):
+    def write_page(self, pageno, data):
         err = 0
         self.WriteProtect = False
 
         if self.Options & flashdevice_defs.LP_OPTIONS:
             self.sendCmd(flashdevice_defs.NAND_CMD_SEQIN)
-            self.WaitReady()
-            self.sendAddr(pageno<<16, self.AddrCycles)
-            self.WaitReady()
-            self.writeData(data)
+            self.wait_ready()
+            self.send_address(pageno<<16, self.AddrCycles)
+            self.wait_ready()
+            self.write_data(data)
             self.sendCmd(flashdevice_defs.NAND_CMD_PAGEPROG)
-            self.WaitReady()
+            self.wait_ready()
         else:
             while 1:
                 self.sendCmd(flashdevice_defs.NAND_CMD_READ0)
                 self.sendCmd(flashdevice_defs.NAND_CMD_SEQIN)
-                self.WaitReady()
-                self.sendAddr(pageno<<8, self.AddrCycles)
-                self.WaitReady()
-                self.writeData(data[0:256])
+                self.wait_ready()
+                self.send_address(pageno<<8, self.AddrCycles)
+                self.wait_ready()
+                self.write_data(data[0:256])
                 self.sendCmd(flashdevice_defs.NAND_CMD_PAGEPROG)
-                err = self.Status()
+                err = self.get_status()
                 if err & flashdevice_defs.NAND_STATUS_FAIL:
                     print('Failed to write 1st half of ', pageno, err)
                     continue
@@ -484,26 +484,26 @@ class IO:
             while 1:
                 self.sendCmd(flashdevice_defs.NAND_CMD_READ1)
                 self.sendCmd(flashdevice_defs.NAND_CMD_SEQIN)
-                self.WaitReady()
-                self.sendAddr(pageno<<8, self.AddrCycles)
-                self.WaitReady()
-                self.writeData(data[self.PageSize/2:self.PageSize])
+                self.wait_ready()
+                self.send_address(pageno<<8, self.AddrCycles)
+                self.wait_ready()
+                self.write_data(data[self.PageSize/2:self.PageSize])
                 self.sendCmd(flashdevice_defs.NAND_CMD_PAGEPROG)
-                err = self.Status()
+                err = self.get_status()
                 if err & flashdevice_defs.NAND_STATUS_FAIL:
                     print('Failed to write 2nd half of ', pageno, err)
                     continue
                 break
 
             while 1:
-                self.sendCmd(flashdevice_defs.NAND_CMD_READOOB)
+                self.sendCmd(flashdevice_defs.NAND_CMD_READ_OOB)
                 self.sendCmd(flashdevice_defs.NAND_CMD_SEQIN)
-                self.WaitReady()
-                self.sendAddr(pageno<<8, self.AddrCycles)
-                self.WaitReady()
-                self.writeData(data[self.PageSize:self.RawPageSize])
+                self.wait_ready()
+                self.send_address(pageno<<8, self.AddrCycles)
+                self.wait_ready()
+                self.write_data(data[self.PageSize:self.RawPageSize])
                 self.sendCmd(flashdevice_defs.NAND_CMD_PAGEPROG)
-                err = self.Status()
+                err = self.get_status()
                 if err & flashdevice_defs.NAND_STATUS_FAIL:
                     print('Failed to write OOB of ', pageno, err)
                     continue
@@ -512,14 +512,14 @@ class IO:
         self.WriteProtect = True
         return err
 
-#    def writeBlock(self, block_data):
-#        nand_tool.EraseBlockByPage(0) #need to fix
+#    def write_block(self, block_data):
+#        nand_tool.erase_block_by_page(0) #need to fix
 #        page = 0
 #        for i in range(0, len(data), self.RawPageSize):
-#            nand_tool.WritePage(pageno, data[i:i+self.RawPageSize])
+#            nand_tool.write_page(pageno, data[i:i+self.RawPageSize])
 #            page += 1
 
-    def WritePages(self, filename, offset = 0, start_page = -1, end_page = -1, add_oob = False, add_jffs2_eraser_marker = False, raw_mode = False):
+    def write_pages(self, filename, offset = 0, start_page = -1, end_page = -1, add_oob = False, add_jffs2_eraser_marker = False, raw_mode = False):
         fd = open(filename, 'rb')
         fd.seek(offset)
         data = fd.read()
@@ -550,7 +550,7 @@ class IO:
                 if not raw_mode:
                     bad_block_found = False
                     for pageoff in range(0, 2, 1):
-                        oob = self.ReadOOB(page+pageoff)
+                        oob = self.read_oob(page+pageoff)
 
                         if oob[5] != b'\xff':
                             bad_block_found = True
@@ -565,14 +565,14 @@ class IO:
                 if add_jffs2_eraser_marker:
                     oob_postfix = b"\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
 
-                self.EraseBlockByPage(page)
+                self.erase_block_by_page(page)
 
             if add_oob:
                 orig_page_data = data[current_data_offset:current_data_offset + self.PageSize]
                 current_data_offset += self.PageSize
                 length += len(orig_page_data)
                 orig_page_data += (self.PageSize - len(orig_page_data)) * b'\x00'
-                (ecc0, ecc1, ecc2) = ecc_calculator.Calc(orig_page_data)
+                (ecc0, ecc1, ecc2) = ecc_calculator.calc(orig_page_data)
 
                 oob = struct.pack('BBB', ecc0, ecc1, ecc2) + oob_postfix
                 page_data = orig_page_data+oob
@@ -599,7 +599,7 @@ class IO:
                     sys.stdout.write('Writing %d%% Page: %d/%d Block: %d/%d Speed: %d bytes/s\n\033[A' % (progress, page, end_page, block, end_block, length/lapsed_time))
                 else:
                     sys.stdout.write('Writing %d%% Page: %d/%d Block: %d/%d Speed: %d bytes/s\n' % (progress, page, end_page, block, end_block, length/lapsed_time))
-            self.WritePage(page, page_data)
+            self.write_page(page, page_data)
 
             if page%self.PagePerBlock == 0:
                 block = page / self.PagePerBlock
@@ -609,14 +609,14 @@ class IO:
 
         print('\nWritten %x bytes / %x byte' % (length, len(data)))
 
-    def Erase(self):
+    def erase(self):
         block = 0
         while block < self.BlockCount:
-            self.EraseBlockByPage(block * self.PagePerBlock)
+            self.erase_block_by_page(block * self.PagePerBlock)
             block += 1
 
-    def EraseBlock(self, start_block, end_block):
+    def erase_block(self, start_block, end_block):
         print('Erasing Block: 0x%x ~ 0x%x' % (start_block, end_block))
         for block in range(start_block, end_block+1, 1):
             print("Erasing block", block)
-            self.EraseBlockByPage(block * self.PagePerBlock)
+            self.erase_block_by_page(block * self.PagePerBlock)

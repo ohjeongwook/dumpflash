@@ -23,14 +23,14 @@ class IO:
         else:
             self.SrcImage = flashdevice.IO(slow)
 
-    def IsInitialized(self):
-        return self.SrcImage.IsInitialized()
+    def is_initialized(self):
+        return self.SrcImage.is_initialized()
 
-    def SetUseAnsi(self, use_ansi):
+    def set_use_ansi(self, use_ansi):
         self.UseAnsi = use_ansi
-        self.SrcImage.SetUseAnsi(use_ansi)
+        self.SrcImage.set_use_ansi(use_ansi)
 
-    def CheckECC(self, start_page = 0, end_page = -1):
+    def check_ecc(self, start_page = 0, end_page = -1):
         block = 0
         count = 0
         error_count = 0
@@ -58,11 +58,11 @@ class IO:
                         fmt_str = 'Checking ECC %d%% (Page: %3d/%3d Block: %3d/%3d)\n'
                     sys.stdout.write(fmt_str % (progress, page, end_page, block, end_block))
 
-            #if self.CheckBadBlock(block) == self.BAD_BLOCK:
+            #if self.check_bad_block(block) == self.BAD_BLOCK:
             #    print 'Bad Block: %d' % block
             #    print ''
 
-            data = self.SrcImage.ReadPage(page)
+            data = self.SrcImage.read_page(page)
 
             if not data:
 #                end_of_file = True
@@ -77,7 +77,7 @@ class IO:
             if (oob_ecc0 == 0xff and oob_ecc1 == 0xff and oob_ecc2 == 0xff) or (oob_ecc0 == 0x00 and oob_ecc1 == 0x00 and oob_ecc2 == 0x00):
                 continue
 
-            (ecc0, ecc1, ecc2) = ecc_calculator.Calc(body)
+            (ecc0, ecc1, ecc2) = ecc_calculator.calc(body)
 
             ecc0_xor = ecc0 ^ oob_ecc0
             ecc1_xor = ecc1 ^ oob_ecc1
@@ -88,7 +88,7 @@ class IO:
 
 #                page_in_block = page%self.SrcImage.PagePerBlock
 
-                offset = self.SrcImage.GetPageOffset(page)
+                offset = self.SrcImage.get_page_offset(page)
                 print('ECC Error (Block: %3d Page: %3d Data Offset: 0x%x OOB Offset: 0x%x)' % (block, page, offset, offset+self.SrcImage.PageSize))
                 print('  OOB:  0x%.2x 0x%.2x 0x%.2x' % (oob_ecc0, oob_ecc1, oob_ecc2))
                 print('  Calc: 0x%.2x 0x%.2x 0x%.2x' % (ecc0, ecc1, ecc2))
@@ -97,7 +97,7 @@ class IO:
 
         print('Checked %d ECC record and found %d errors' % (count, error_count))
 
-    def CheckBadBlockPage(self, oob):
+    def check_bad_block_page(self, oob):
         bad_block = False
 
         if oob[0:3] != b'\xff\xff\xff':
@@ -111,10 +111,10 @@ class IO:
     BAD_BLOCK = 1
     ERROR = 2
 
-    def CheckBadBlock(self, block):
+    def check_bad_block(self, block):
         for page in range(0, 2, 1):
             pageno = block * self.SrcImage.PagePerBlock + page
-            oob = self.SrcImage.ReadOOB(pageno)
+            oob = self.SrcImage.read_oob(pageno)
             bad_block_marker = oob[6:7]
             if not bad_block_marker:
                 return self.ERROR
@@ -124,14 +124,14 @@ class IO:
 
         return self.BAD_BLOCK
 
-    def CheckBadBlocks(self):
+    def check_bad_blocks(self):
         block = 0
         error_count = 0
 
 #        start_block = 0
 #        end_page = self.SrcImage.PageCount
         for block in range(self.SrcImage.BlockCount):
-            ret = self.CheckBadBlock(block)
+            ret = self.check_bad_block(block)
 
             progress = (block+1)*100.0/self.SrcImage.BlockCount
             sys.stdout.write('Checking Bad Blocks %d%% Block: %d/%d at offset 0x%x\n' % (progress, block+1, self.SrcImage.BlockCount, (block * self.SrcImage.BlockSize)))
@@ -144,11 +144,11 @@ class IO:
                 break
         print("\nChecked %d blocks and found %d errors" % (block+1, error_count))
 
-    def ReadPages(self, start_page = -1, end_page = -1, remove_oob = False, filename = '', append = False, maximum = 0, seq = False, raw_mode = False):
-        print('* ReadPages: %d ~ %d' % (start_page, end_page))
+    def read_pages(self, start_page = -1, end_page = -1, remove_oob = False, filename = '', append = False, maximum = 0, seq = False, raw_mode = False):
+        print('* read_pages: %d ~ %d' % (start_page, end_page))
 
         if seq:
-            return self.ReadSeqPages(start_page, end_page, remove_oob, filename, append = append, maximum = maximum, raw_mode = raw_mode)
+            return self.read_seq_pages(start_page, end_page, remove_oob, filename, append = append, maximum = maximum, raw_mode = raw_mode)
 
         if filename:
             if append:
@@ -174,7 +174,7 @@ class IO:
         start = time.time()
         last_time = time.time()
         for page in range(start_page, end_page, 1):
-            data = self.SrcImage.ReadPage(page, remove_oob)
+            data = self.SrcImage.read_page(page, remove_oob)
 
             if filename:
                 if maximum != 0:
@@ -216,7 +216,7 @@ class IO:
             return whole_data[0:maximum]
         return whole_data
 
-    def ReadSeqPages(self, start_page = -1, end_page = -1, remove_oob = False, filename = '', append = False, maximum = 0, raw_mode = False):
+    def read_seq_pages(self, start_page = -1, end_page = -1, remove_oob = False, filename = '', append = False, maximum = 0, raw_mode = False):
         if filename:
             if append:
                 fd = open(filename, 'ab')
@@ -236,7 +236,7 @@ class IO:
         length = 0
         start = time.time()
         for page in range(start_page, end_page, self.SrcImage.PagePerBlock):
-            data = self.SrcImage.ReadSeq(page, remove_oob, raw_mode)
+            data = self.SrcImage.read_seq(page, remove_oob, raw_mode)
 
             if filename:
                 if maximum != 0:
@@ -270,7 +270,7 @@ class IO:
             return whole_data[0:maximum]
         return whole_data
 
-    def AddOOB(self, filename, output_filename, jffs2 = False):
+    def add_oob(self, filename, output_filename, jffs2 = False):
         fd = open(filename, 'rb')
         wfd = open(output_filename, "wb")
 
@@ -283,7 +283,7 @@ class IO:
             if not page:
                 break
 
-            (ecc0, ecc1, ecc2) = ecc_calculator.Calc(page)
+            (ecc0, ecc1, ecc2) = ecc_calculator.calc(page)
 
             oob_postfix = b'\xff' * 13
 
@@ -309,14 +309,14 @@ class IO:
         fd.close()
         wfd.close()
 
-    def ExtractPagesByOffset(self, output_filename, start_offset = 0, end_offset = -1, remove_oob = True):
+    def extract_pages_by_offset(self, output_filename, start_offset = 0, end_offset = -1, remove_oob = True):
         if start_offset == -1:
             start_offset = 0
 
         if end_offset == -1:
             end_offset = self.SrcImage.RawBlockSize * self.SrcImage.BlockCount
 
-        print('ExtractPagesByOffset: 0x%x - 0x%x -> %s' % (start_offset, end_offset, output_filename))
+        print('extract_pages_by_offset: 0x%x - 0x%x -> %s' % (start_offset, end_offset, output_filename))
 
         start_block = int(start_offset / self.SrcImage.RawBlockSize)
         start_block_offset = start_offset % self.SrcImage.RawBlockSize
@@ -333,7 +333,7 @@ class IO:
         with open(output_filename, 'wb') as wfd:
             output_bytes = ''
             for block in range(start_block, end_block+1, 1):
-                ret = self.CheckBadBlock(block)
+                ret = self.check_bad_block(block)
                 if ret == self.CLEAN_BLOCK:
                     current_start_page = 0
                     current_end_page = self.SrcImage.PagePerBlock
@@ -345,7 +345,7 @@ class IO:
 
                     for page in range(current_start_page, current_end_page, 1):
                         pageno = block * self.SrcImage.PagePerBlock + page
-                        data = self.SrcImage.ReadPage(pageno)
+                        data = self.SrcImage.read_page(pageno)
 
                         if not data:
                             break
@@ -366,7 +366,7 @@ class IO:
                 else:
                     print("Skipping block %d" % block)
 
-    def ExtractPages(self, output_filename, start_page = 0, end_page = -1, remove_oob = True):
+    def extract_pages(self, output_filename, start_page = 0, end_page = -1, remove_oob = True):
         if start_page == -1:
             start_page = 0
 
@@ -375,9 +375,9 @@ class IO:
         else:
             end_offset = end_page * self.SrcImage.RawPageSize
 
-        return self.ExtractPagesByOffset(output_filename, start_page * self.SrcImage.RawPageSize, end_offset, remove_oob)
+        return self.extract_pages_by_offset(output_filename, start_page * self.SrcImage.RawPageSize, end_offset, remove_oob)
 
-    def ExtractData(self, start_page, length, filename = ''):
+    def extract_data(self, start_page, length, filename = ''):
         start_block = start_page / self.SrcImage.PagePerBlock
         start_block_page = start_page % self.SrcImage.PagePerBlock
 
@@ -387,7 +387,7 @@ class IO:
         for _start_page in range(start_block*self.SrcImage.PagePerBlock, self.SrcImage.PageCount, self.SrcImage.PagePerBlock):
             is_bad_block = False
             for pageoff in range(0, 2, 1):
-                oob = self.SrcImage.ReadOOB(_start_page+pageoff)
+                oob = self.SrcImage.read_oob(_start_page+pageoff)
 
                 if oob and oob[5] != b'\xff':
                     is_bad_block = True
@@ -415,7 +415,7 @@ class IO:
             if block == start_block:
                 start_page += start_block_page
 
-            data += self.ReadPages(start_page, end_page, True, filename, append = append, maximum = maximum, seq = self.UseSequentialMode)
+            data += self.read_pages(start_page, end_page, True, filename, append = append, maximum = maximum, seq = self.UseSequentialMode)
 
             maximum -= self.SrcImage.PagePerBlock*self.SrcImage.PageSize
 
