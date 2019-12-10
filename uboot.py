@@ -402,7 +402,7 @@ class Util:
 
         print("Checked %d blocks" % (block))
 
-    def ubootImages(self):
+    def DumpUBootImages(self):
         seq = 0
         for pageno in range(0, self.FlashImageIO.SrcImage.PageCount, self.FlashImageIO.SrcImage.PagePerBlock):
             data = self.FlashImageIO.SrcImage.ReadPage(pageno)
