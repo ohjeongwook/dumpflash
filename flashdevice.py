@@ -624,7 +624,7 @@ class IO:
             end_block += 1
 
         start = time.time()
-        ecc = ecc.Calculator()
+        ecc_calculator = ecc.Calculator()
 
         page = start_page
         block = page/self.PagePerBlock

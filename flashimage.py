@@ -276,7 +276,7 @@ class IO:
 
         current_block_number = 0
         current_output_size = 0
-        ecc = ecc.Calculator()
+        ecc_calculator = ecc.Calculator()
         while 1:
             page = fd.read(self.SrcImage.PageSize)
 

@@ -376,7 +376,7 @@ class Util:
     def __init__(self, flash_image_io):
         self.FlashImageIO = flash_image_io
 
-    def FindUBootImages(self):
+    def Find(self):
         print('Finding U-Boot Images')
         block = 0
 
@@ -402,7 +402,7 @@ class Util:
 
         print("Checked %d blocks" % (block))
 
-    def DumpUBootImages(self):
+    def Dump(self):
         seq = 0
         for pageno in range(0, self.FlashImageIO.SrcImage.PageCount, self.FlashImageIO.SrcImage.PagePerBlock):
             data = self.FlashImageIO.SrcImage.ReadPage(pageno)

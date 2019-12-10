@@ -39,7 +39,7 @@ class Util:
 
         return [minimum_pageno, maximum_pageno]
 
-    def FindJFFS2(self):
+    def Find(self):
         start_block = -1
         end_block = 0
         jffs2_blocks = []
@@ -76,7 +76,7 @@ class Util:
 
         return jffs2_blocks
 
-    def DumpJFFS2(self, name_prefix = ''):
+    def Dump(self, name_prefix = ''):
         i = 0
         for (start_block, end_block) in self.FindJFFS2():
             print('Dumping %d JFFS2 block Block: %d - %d ...' % (i, start_block, end_block))

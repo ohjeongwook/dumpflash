@@ -159,16 +159,16 @@ if options.command == 'check_ecc':
 
 elif options.command == 'find_uboot':
     uboot_util = uboot.Util(flash_image_io)
-    uboot_util.FindUBootImages()
+    uboot_util.Find()
 
 elif options.command == 'dump_uboot':
     uboot_util = uboot.Util(flash_image_io)
-    uboot_util.DumpUBootImages()
+    uboot_util.Dump()
 
 elif options.command == 'find_jffs2':
     jffs2_util = jffs2.Util(flash_image_io)
-    jffs2_util.FindJFFS2()
+    jffs2_util.Find()
 
 elif options.command == 'dump_jffs2':
     jffs2_util = jffs2.Util(flash_image_io)
-    jffs2_util.DumpJFFS2(options.name_prefix)
+    jffs2_util.Dump(options.name_prefix)
