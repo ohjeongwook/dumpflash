@@ -1,19 +1,37 @@
 # DumpFlash
 DumpFlash is a tool to retrieve and write Flash data to the physical NAND Flash memory or virtual image file. Various operations like ECC check and on-image pattern recognition, extraction and rewriting for u-Boot bootloader and JFFS2 file system are supported.
 
+---
 ## Prerequisites
-
-### PyUSB
 
 ### libusb-1.0
 http://zadig.akeo.ie/
 
+
+### PyUSB
+
+* pip install pyusb
+
 ### pyftdi
-Use one of the following options.
-* Install from source https://github.com/eblot/pyftdi
-* pip install pyftdi
+* Use one of the following options.
+   * Install from source https://github.com/eblot/pyftdi
+   * pip install pyftdi
 
+---
+## Install
 
+```
+pip install git+https://github.com/ohjeongwook/dumpflash
+```
+
+---
+### Upgrade
+
+```
+pip install git+https://github.com/ohjeongwook/dumpflash --upgrade
+```
+
+---
 ## Documentations
 For more details, please read following:
 
