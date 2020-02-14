@@ -28,40 +28,40 @@ class IO:
         self.SimulationMode = simulation_mode
 
         try:
-            self.Ftdi = ftdi.Ftdi()
+            self.ftdi = ftdi.Ftdi()
         except:
             print("Error openging FTDI device")
-            self.Ftdi = None
+            self.ftdi = None
 
-        if self.Ftdi is not None:
+        if self.ftdi is not None:
             try:
-                self.Ftdi.open(0x0403, 0x6010, interface = 1)
+                self.ftdi.open(0x0403, 0x6010, interface = 1)
             except:
                 traceback.print_exc(file = sys.stdout)
 
-            if self.Ftdi.is_connected:
-                self.Ftdi.set_bitmode(0, self.Ftdi.BITMODE_MCU)
+            if self.ftdi.is_connected:
+                self.ftdi.set_bitmode(0, self.ftdi.BITMODE_MCU)
 
                 if self.Slow:
                     # Clock FTDI chip at 12MHz instead of 60MHz
-                    self.Ftdi.write_data(Array('B', [ftdi.Ftdi.ENABLE_CLK_DIV5]))
+                    self.ftdi.write_data(Array('B', [ftdi.Ftdi.ENABLE_CLK_DIV5]))
                 else:
-                    self.Ftdi.write_data(Array('B', [ftdi.Ftdi.DISABLE_CLK_DIV5]))
+                    self.ftdi.write_data(Array('B', [ftdi.Ftdi.DISABLE_CLK_DIV5]))
 
-                self.Ftdi.set_latency_timer(self.Ftdi.LATENCY_MIN)
-                self.Ftdi.purge_buffers()
-                self.Ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x0, 0x1]))
+                self.ftdi.set_latency_timer(self.ftdi.LATENCY_MIN)
+                self.ftdi.purge_buffers()
+                self.ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x0, 0x1]))
 
         self.__wait_ready()
         self.__get_id()
 
     def __wait_ready(self):
-        if self.Ftdi is None or not self.Ftdi.is_connected:
+        if self.ftdi is None or not self.ftdi.is_connected:
             return
 
         while 1:
-            self.Ftdi.write_data(Array('B', [ftdi.Ftdi.GET_BITS_HIGH]))
-            data = self.Ftdi.read_data_bytes(1)
+            self.ftdi.write_data(Array('B', [ftdi.Ftdi.GET_BITS_HIGH]))
+            data = self.ftdi.read_data_bytes(1)
             if not data or len(data) <= 0:
                 raise Exception('FTDI device Not ready. Try restarting it.')
 
@@ -88,15 +88,15 @@ class IO:
 
         cmds.append(ftdi.Ftdi.SEND_IMMEDIATE)
 
-        if self.Ftdi is None or not self.Ftdi.is_connected:
+        if self.ftdi is None or not self.ftdi.is_connected:
             return
 
-        self.Ftdi.write_data(Array('B', cmds))
+        self.ftdi.write_data(Array('B', cmds))
         if self.is_slow_mode():
-            data = self.Ftdi.read_data_bytes(count*2)
+            data = self.ftdi.read_data_bytes(count*2)
             data = data[0:-1:2]
         else:
-            data = self.Ftdi.read_data_bytes(count)
+            data = self.ftdi.read_data_bytes(count)
         return data.tobytes()
 
     def __write(self, cl, al, data):
@@ -115,10 +115,10 @@ class IO:
             #    cmds += [Ftdi.WRITE_SHORT, 0, ord(data[i])]
             cmds += [ftdi.Ftdi.WRITE_SHORT, 0, ord(data[i])]
 
-        if self.Ftdi is None or not self.Ftdi.is_connected:
+        if self.ftdi is None or not self.ftdi.is_connected:
             return
 
-        self.Ftdi.write_data(Array('B', cmds))
+        self.ftdi.write_data(Array('B', cmds))
 
     def __send_cmd(self, cmd):
         self.__write(1, 0, chr(cmd))
@@ -427,11 +427,11 @@ class IO:
 
             self.__wait_ready()
 
-        if self.Ftdi is None or not self.Ftdi.is_connected:
+        if self.ftdi is None or not self.ftdi.is_connected:
             return ''
 
-        self.Ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x1, 0x1]))
-        self.Ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x0, 0x1]))
+        self.ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x1, 0x1]))
+        self.ftdi.write_data(Array('B', [ftdi.Ftdi.SET_BITS_HIGH, 0x0, 0x1]))
 
         data = ''
 
