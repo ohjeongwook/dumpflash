@@ -97,7 +97,7 @@ class IO:
             data = data[0:-1:2]
         else:
             data = self.ftdi.read_data_bytes(count)
-        return data.tobytes()
+        return bytes(data)
 
     def __write(self, cl, al, data):
         cmds = []
