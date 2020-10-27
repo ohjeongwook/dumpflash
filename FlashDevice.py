@@ -16,23 +16,23 @@ class NandIO:
 
     NAND_CMD_READID = 0x90
 
-    NAND_CMD_READ 0= 0
-    NAND_CMD_READ 1= 1
+    NAND_CMD_READ0= 0
+    NAND_CMD_READ1= 1
     NAND_CMD_RNDOUT = 5
     NAND_CMD_PAGEPROG = 0x10
     NAND_CMD_READOOB = 0x50
-    NAND_CMD_ERASE 1= 0x60
+    NAND_CMD_ERASE1= 0x60
     NAND_CMD_STATUS = 0x70
     NAND_CMD_STATUS_MULTI = 0x71
     NAND_CMD_SEQIN = 0x80
     NAND_CMD_RNDIN = 0x85
     NAND_CMD_READID = 0x90
-    NAND_CMD_ERASE 2= 0xd0
+    NAND_CMD_ERASE2= 0xd0
     NAND_CMD_PARAM = 0xec
     NAND_CMD_RESET = 0xff
     NAND_CMD_LOCK = 0x2a
-    NAND_CMD_UNLOCK 1= 0x23
-    NAND_CMD_UNLOCK 2= 0x24
+    NAND_CMD_UNLOCK1= 0x23
+    NAND_CMD_UNLOCK2= 0x24
     NAND_CMD_READSTART = 0x30
     NAND_CMD_RNDOUTSTART = 0xE0
     NAND_CMD_CACHEDPROG = 0x15
@@ -170,7 +170,7 @@ class NandIO:
         while 1:
             self.Ftdi.write_data(Array('B', [Ftdi.GET_BITS_HIGH]))
             data = self.Ftdi.read_data_bytes(1)
-            if data[0]& 2= =0x2:
+            if data[0]&2 ==0x2:
                 return
             else:
                 if self.Debug>0:
@@ -181,9 +181,9 @@ class NandIO:
         cmds = []
         cmd_type = 0
         if cl == 1:
-            cmd_type| = self.ADR_CL
+            cmd_type|= self.ADR_CL
         if al == 1:
-            cmd_type| = self.ADR_AL
+            cmd_type|= self.ADR_AL
 
         cmds += [Ftdi.READ_EXTENDED, cmd_type, 0]
 
@@ -288,7 +288,7 @@ class NandIO:
             else:
                 onfi = False
 
-           if id[0] == 0x98:
+        if id[0] == 0x98:
             self.Manufacturer = "Toshiba"
         elif id[0] == 0xec:
             self.Manufacturer = "Samsung"

@@ -68,7 +68,7 @@ class FlashUtil:
 			oob_ecc1 = ord(data[self.io.PageSize+1])
 			oob_ecc2 = ord(data[self.io.PageSize+2])
 		
-			if (oob_ecc 0= =0xff and oob_ecc 1= =0xff and oob_ecc 2= =0xff) or (oob_ecc 0= =0x00 and oob_ecc 1= =0x00 and oob_ecc 2= =0x00):
+			if (oob_ecc0 ==0xff and oob_ecc1==0xff and oob_ecc2==0xff) or (oob_ecc0==0x00 and oob_ecc1==0x00 and oob_ecc2==0x00):
 				continue
 		
 			(ecc0, ecc1, ecc2) = ecc.CalcECC(body)
@@ -269,7 +269,7 @@ class FlashUtil:
 			return whole_data[0:maximum]
 		return whole_data
 
-	def AddOOB(self, filename, output_filename, jffs 2= False):
+	def AddOOB(self, filename, output_filename, jffs2= False):
 		fd = open(filename, 'rb')
 		wfd = open(output_filename, "wb")
 
@@ -287,7 +287,7 @@ class FlashUtil:
 			oob_postfix = '\xFF' * 13
 
 			if current_output_size% self.io.BlockSize == 0:
-				if jffs2 and current_block_number% 2= =0:
+				if jffs2 and current_block_number% 2==0:
 					oob_postfix = "\xFF\xFF\xFF\xFF\xFF\x85\x19\x03\x20\x08\x00\x00\x00"
 				current_block_number += 1
 
