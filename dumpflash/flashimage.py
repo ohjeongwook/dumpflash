@@ -30,6 +30,89 @@ class IO:
         self.UseAnsi = use_ansi
         self.SrcImage.set_use_ansi(use_ansi)
 
+    def bitcount(self, x):
+        count = 0
+        while x != 0:
+            count += x & 1
+            x >>= 1
+        return count
+
+    def check_ecc_page_512(self, page, subpage, body, oob_ecc0, oob_ecc1, oob_ecc2):
+        if (oob_ecc0 == 0xff and oob_ecc1 == 0xff and oob_ecc2 == 0xff) \
+        or (oob_ecc0 == 0x00 and oob_ecc1 == 0x00 and oob_ecc2 == 0x00):
+            return True
+
+        (ecc0, ecc1, ecc2) = ecc.Calculator().calc2(body)
+
+        ecc0_xor = ecc0 ^ oob_ecc0
+        ecc1_xor = ecc1 ^ oob_ecc1
+        ecc2_xor = ecc2 ^ oob_ecc2
+
+        if ecc0_xor == 0 and ecc1_xor == 0 and ecc2_xor == 0:
+            return True
+
+        bits = self.bitcount(ecc0_xor) + self.bitcount(ecc1_xor) + self.bitcount(ecc2_xor)
+        bad_byte = -1
+        bad_bit = 0
+        corrected = "Error"
+
+        if bits == 12:
+           # column parity bits 5, 3, and 1 determine which bit is bad
+           cp5 = (ecc2_xor >> 7) & 1
+           cp3 = (ecc2_xor >> 5) & 1
+           cp1 = (ecc2_xor >> 3) & 1
+           bad_bit = 0 \
+		| cp5 << 2 \
+		| cp3 << 1 \
+		| cp1 << 0
+
+           # row parities bits 17, 15, 13, ... 1 determine which byte is bad
+           rp17 = (ecc2_xor >> 1) & 1
+           rp15 = (ecc1_xor >> 7) & 1
+           rp13 = (ecc1_xor >> 5) & 1
+           rp11 = (ecc1_xor >> 3) & 1
+           rp9  = (ecc1_xor >> 1) & 1
+           rp7  = (ecc0_xor >> 7) & 1
+           rp5  = (ecc0_xor >> 5) & 1
+           rp3  = (ecc0_xor >> 3) & 1
+           rp1  = (ecc0_xor >> 1) & 1
+           bad_byte = 0 \
+               | rp17 << 8 \
+               | rp15 << 7 \
+               | rp13 << 6 \
+               | rp11 << 5 \
+               | rp9  << 4 \
+               | rp7  << 3 \
+               | rp5  << 2 \
+               | rp3  << 1 \
+               | rp1  << 0
+
+           # try flipping that bit and re-computing
+           new_body = bytearray(body)
+           new_body[bad_byte] ^= 1 << bad_bit
+           (ecc0_new, ecc1_new, ecc2_new) = ecc.Calculator().calc2(new_body)
+
+           ecc0_xor2 = ecc0_new ^ oob_ecc0
+           ecc1_xor2 = ecc1_new ^ oob_ecc1
+           ecc2_xor2 = ecc2_new ^ oob_ecc2
+
+           if ecc0_xor2 == 0 and ecc1_xor2 == 0 and ecc2_xor2 == 0:
+               corrected = "Corrected"
+
+#                page_in_block = page%self.SrcImage.PagePerBlock
+
+        offset = self.SrcImage.get_page_offset(page)
+        block = page/self.SrcImage.PagePerBlock
+
+        #print('ECC Error (Block: %3d Page: %3d Data Offset: 0x%x OOB Offset: 0x%x)' % (block, page, offset, offset+self.SrcImage.PageSize))
+        print('ECC %s (Block: %3d Page: %3d.%d Data Offset: 0x%x)' % (corrected, block, page, subpage, offset))
+        print('  OOB:  0x%.2x 0x%.2x 0x%.2x' % (oob_ecc0, oob_ecc1, oob_ecc2))
+        print('  Calc: 0x%.2x 0x%.2x 0x%.2x' % (ecc0, ecc1, ecc2))
+        print('  XOR:  0x%.2x 0x%.2x 0x%.2x bitcount %d byte %x.%d' % (ecc0_xor, ecc1_xor, ecc2_xor, bits, bad_byte, bad_bit))
+        print('')
+
+        return False
+
     def check_ecc(self, start_page = 0, end_page = -1):
         block = 0
         count = 0
@@ -43,7 +126,6 @@ class IO:
         if end_page%self.SrcImage.PagePerBlock > 0:
             end_block += 1
 
-        ecc_calculator = ecc.Calculator()
         start = time.time()
         for page in range(0, self.SrcImage.PageCount, 1):
             block = page/self.SrcImage.PagePerBlock
@@ -69,32 +151,22 @@ class IO:
                 break
 
             count += 1
-            body = data[0:self.SrcImage.PageSize]
-            oob_ecc0 = ord(data[self.SrcImage.PageSize])
-            oob_ecc1 = ord(data[self.SrcImage.PageSize+1])
-            oob_ecc2 = ord(data[self.SrcImage.PageSize+2])
+            #body = data[0:self.SrcImage.PageSize]
 
-            if (oob_ecc0 == 0xff and oob_ecc1 == 0xff and oob_ecc2 == 0xff) or (oob_ecc0 == 0x00 and oob_ecc1 == 0x00 and oob_ecc2 == 0x00):
-                continue
-
-            (ecc0, ecc1, ecc2) = ecc_calculator.calc(body)
-
-            ecc0_xor = ecc0 ^ oob_ecc0
-            ecc1_xor = ecc1 ^ oob_ecc1
-            ecc2_xor = ecc2 ^ oob_ecc2
-
-            if ecc0_xor != 0 or ecc1_xor != 0 or ecc2_xor != 0:
-                error_count += 1
-
-#                page_in_block = page%self.SrcImage.PagePerBlock
-
-                offset = self.SrcImage.get_page_offset(page)
-                print('ECC Error (Block: %3d Page: %3d Data Offset: 0x%x OOB Offset: 0x%x)' % (block, page, offset, offset+self.SrcImage.PageSize))
-                print('  OOB:  0x%.2x 0x%.2x 0x%.2x' % (oob_ecc0, oob_ecc1, oob_ecc2))
-                print('  Calc: 0x%.2x 0x%.2x 0x%.2x' % (ecc0, ecc1, ecc2))
-                print('  XOR:  0x%.2x 0x%.2x 0x%.2x' % (ecc0 ^ oob_ecc0, ecc1 ^ oob_ecc1, ecc2 ^ oob_ecc2))
-                print('')
-
+            if self.SrcImage.PageSize == 512:
+                if not self.check_ecc_page_512(page, 0, data[0:512], data[512+0], data[512+1], data[512+2]):
+                    error_count += 1
+            elif self.SrcImage.PageSize == 2048:
+                # four 512 byte sub pages
+                for i in range(0,3):
+                    if not self.check_ecc_page_512(
+                        page, i,
+                        data[i*512:i*512 + 512],
+                        data[2048 + i*16 +  8],
+                        data[2048 + i*16 +  9],
+                        data[2048 + i*16 + 10],
+                    ):
+                        error_count += 1
         print('Checked %d ECC record and found %d errors' % (count, error_count))
 
     def check_bad_block_page(self, oob):
