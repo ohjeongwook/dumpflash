@@ -115,90 +115,48 @@ class Calculator:
 
     def calc2(self, body):
         par = 0
-        rp0 = 0
-        rp1 = 0
-        rp2 = 0
-        rp3 = 0
-        rp4 = 0
-        rp5 = 0
-        rp6 = 0
-        rp7 = 0
-        rp8 = 0
-        rp9 = 0
-        rp10 = 0
-        rp11 = 0
-        rp12 = 0
-        rp13 = 0
-        rp14 = 0
-        rp15 = 0
+        rp = [0] * 18
 
         for i in range(0, len(body), 1):
-            cur = ord(body[i])
+            cur = body[i]
             par ^= cur
 
-            if i & 0x01:
-                rp1 ^= cur
-            else:
-                rp0 ^= cur
-            if i & 0x02:
-                rp3 ^= cur
-            else:
-                rp2 ^= cur
-            if i & 0x04:
-                rp5 ^= cur
-            else:
-                rp4 ^= cur
-            if i & 0x08:
-                rp7 ^= cur
-            else:
-                rp6 ^= cur
-            if i & 0x10:
-                rp9 ^= cur
-            else:
-                rp8 ^= cur
-            if i & 0x20:
-                rp11 ^= cur
-            else:
-                rp10 ^= cur
-            if i & 0x40:
-                rp13 ^= cur
-            else:
-                rp12 ^= cur
-            if i & 0x80:
-                rp15 ^= cur
-            else:
-                rp14 ^= cur
+            # compute the row parities by testing
+            # the r^th bit of the address i
+            for r in range(0,9):
+                if (i >> r) & 1:
+                    rp[2*r + 1] ^= cur
+                else:
+                    rp[2*r + 0] ^= cur
 
-        code0 = \
-            (self.Parity[rp7] << 7)| \
-            (self.Parity[rp6] << 6)| \
-            (self.Parity[rp5] << 5)| \
-            (self.Parity[rp4] << 4)| \
-            (self.Parity[rp3] << 3)| \
-            (self.Parity[rp2] << 2)| \
-            (self.Parity[rp1] << 1)| \
-            (self.Parity[rp0] << 0)
+        code0 = 0
+        code1 = 0
 
-        code1 = \
-            (self.Parity[rp15] << 7)| \
-            (self.Parity[rp14] << 6)| \
-            (self.Parity[rp13] << 5)| \
-            (self.Parity[rp12] << 4)| \
-            (self.Parity[rp11] << 3)| \
-            (self.Parity[rp10] << 2)| \
-            (self.Parity[rp9] << 1)| \
-            (self.Parity[rp8] << 0)
+        for i in range(0,8):
+            code0 |= self.Parity[rp[i+0]] << i
+            code1 |= self.Parity[rp[i+8]] << i
 
-        code2 = \
-            (self.Parity[par & 0xf0] << 7) | \
-            (self.Parity[par & 0x0f] << 6) | \
-            (self.Parity[par & 0xcc] << 5) | \
-            (self.Parity[par & 0x33] << 4) | \
-            (self.Parity[par & 0xaa] << 3) | \
-            (self.Parity[par & 0x55] << 2)
+        # column parities
+        cp5 = par & 0b11110000
+        cp4 = par & 0b00001111
+        cp3 = par & 0b11001100
+        cp2 = par & 0b00110011
+        cp1 = par & 0b10101010
+        cp0 = par & 0b01010101
 
-        code0 = ~code0
-        code1 = ~code1
-        code2 = ~code2
+        # 512-byte blocks squeeze the extra row parities into code2
+        code2 = 0 \
+            | (self.Parity[cp5] << 7) \
+            | (self.Parity[cp4] << 6) \
+            | (self.Parity[cp3] << 5) \
+            | (self.Parity[cp2] << 4) \
+            | (self.Parity[cp1] << 3) \
+            | (self.Parity[cp0] << 2) \
+            | (self.Parity[rp[17]] << 1) \
+            | (self.Parity[rp[16]] << 0)
+
+        code0 ^= 0xFF
+        code1 ^= 0xFF
+        code2 ^= 0xFF
 
         return (code0, code1, code2)

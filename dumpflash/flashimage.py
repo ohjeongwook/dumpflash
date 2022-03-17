@@ -30,12 +30,19 @@ class IO:
         self.UseAnsi = use_ansi
         self.SrcImage.set_use_ansi(use_ansi)
 
+    def bitcount(self, x):
+        count = 0
+        while x != 0:
+            count += x & 1
+            x >>= 1
+        return count
+
     def check_ecc_page_512(self, page, subpage, body, oob_ecc0, oob_ecc1, oob_ecc2):
         if (oob_ecc0 == 0xff and oob_ecc1 == 0xff and oob_ecc2 == 0xff) \
         or (oob_ecc0 == 0x00 and oob_ecc1 == 0x00 and oob_ecc2 == 0x00):
             return True
 
-        (ecc0, ecc1, ecc2) = ecc.Calculator().calc(body)
+        (ecc0, ecc1, ecc2) = ecc.Calculator().calc2(body)
 
         ecc0_xor = ecc0 ^ oob_ecc0
         ecc1_xor = ecc1 ^ oob_ecc1
@@ -43,6 +50,8 @@ class IO:
 
         if ecc0_xor == 0 and ecc1_xor == 0 and ecc2_xor == 0:
             return True
+
+        bits = self.bitcount(ecc0_xor) + self.bitcount(ecc1_xor) + self.bitcount(ecc2_xor)
 
 #                page_in_block = page%self.SrcImage.PagePerBlock
 
@@ -52,7 +61,7 @@ class IO:
         print('ECC Error (Block: %3d Page: %3d.%d Data Offset: 0x%x)' % (block, page, subpage, offset))
         print('  OOB:  0x%.2x 0x%.2x 0x%.2x' % (oob_ecc0, oob_ecc1, oob_ecc2))
         print('  Calc: 0x%.2x 0x%.2x 0x%.2x' % (ecc0, ecc1, ecc2))
-        print('  XOR:  0x%.2x 0x%.2x 0x%.2x' % (ecc0_xor, ecc1_xor, ecc2_xor))
+        print('  XOR:  0x%.2x 0x%.2x 0x%.2x bitcount %d' % (ecc0_xor, ecc1_xor, ecc2_xor, bits))
         print('')
         return False
 
