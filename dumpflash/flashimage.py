@@ -30,6 +30,32 @@ class IO:
         self.UseAnsi = use_ansi
         self.SrcImage.set_use_ansi(use_ansi)
 
+    def check_ecc_page_512(self, page, subpage, body, oob_ecc0, oob_ecc1, oob_ecc2):
+        if (oob_ecc0 == 0xff and oob_ecc1 == 0xff and oob_ecc2 == 0xff) \
+        or (oob_ecc0 == 0x00 and oob_ecc1 == 0x00 and oob_ecc2 == 0x00):
+            return True
+
+        (ecc0, ecc1, ecc2) = ecc.Calculator().calc(body)
+
+        ecc0_xor = ecc0 ^ oob_ecc0
+        ecc1_xor = ecc1 ^ oob_ecc1
+        ecc2_xor = ecc2 ^ oob_ecc2
+
+        if ecc0_xor == 0 and ecc1_xor == 0 and ecc2_xor == 0:
+            return True
+
+#                page_in_block = page%self.SrcImage.PagePerBlock
+
+        offset = self.SrcImage.get_page_offset(page)
+        block = page/self.SrcImage.PagePerBlock
+        #print('ECC Error (Block: %3d Page: %3d Data Offset: 0x%x OOB Offset: 0x%x)' % (block, page, offset, offset+self.SrcImage.PageSize))
+        print('ECC Error (Block: %3d Page: %3d.%d Data Offset: 0x%x)' % (block, page, subpage, offset))
+        print('  OOB:  0x%.2x 0x%.2x 0x%.2x' % (oob_ecc0, oob_ecc1, oob_ecc2))
+        print('  Calc: 0x%.2x 0x%.2x 0x%.2x' % (ecc0, ecc1, ecc2))
+        print('  XOR:  0x%.2x 0x%.2x 0x%.2x' % (ecc0_xor, ecc1_xor, ecc2_xor))
+        print('')
+        return False
+
     def check_ecc(self, start_page = 0, end_page = -1):
         block = 0
         count = 0
@@ -43,7 +69,6 @@ class IO:
         if end_page%self.SrcImage.PagePerBlock > 0:
             end_block += 1
 
-        ecc_calculator = ecc.Calculator()
         start = time.time()
         for page in range(0, self.SrcImage.PageCount, 1):
             block = page/self.SrcImage.PagePerBlock
@@ -69,32 +94,22 @@ class IO:
                 break
 
             count += 1
-            body = data[0:self.SrcImage.PageSize]
-            oob_ecc0 = data[self.SrcImage.PageSize]
-            oob_ecc1 = data[self.SrcImage.PageSize+1]
-            oob_ecc2 = data[self.SrcImage.PageSize+2]
+            #body = data[0:self.SrcImage.PageSize]
 
-            if (oob_ecc0 == 0xff and oob_ecc1 == 0xff and oob_ecc2 == 0xff) or (oob_ecc0 == 0x00 and oob_ecc1 == 0x00 and oob_ecc2 == 0x00):
-                continue
-
-            (ecc0, ecc1, ecc2) = ecc_calculator.calc(body)
-
-            ecc0_xor = ecc0 ^ oob_ecc0
-            ecc1_xor = ecc1 ^ oob_ecc1
-            ecc2_xor = ecc2 ^ oob_ecc2
-
-            if ecc0_xor != 0 or ecc1_xor != 0 or ecc2_xor != 0:
-                error_count += 1
-
-#                page_in_block = page%self.SrcImage.PagePerBlock
-
-                offset = self.SrcImage.get_page_offset(page)
-                print('ECC Error (Block: %3d Page: %3d Data Offset: 0x%x OOB Offset: 0x%x)' % (block, page, offset, offset+self.SrcImage.PageSize))
-                print('  OOB:  0x%.2x 0x%.2x 0x%.2x' % (oob_ecc0, oob_ecc1, oob_ecc2))
-                print('  Calc: 0x%.2x 0x%.2x 0x%.2x' % (ecc0, ecc1, ecc2))
-                print('  XOR:  0x%.2x 0x%.2x 0x%.2x' % (ecc0 ^ oob_ecc0, ecc1 ^ oob_ecc1, ecc2 ^ oob_ecc2))
-                print('')
-
+            if self.SrcImage.PageSize == 512:
+                if not self.check_ecc_page_512(page, 0, data[0:512], data[512+0], data[512+1], data[512+2]):
+                    error_count += 1
+            elif self.SrcImage.PageSize == 2048:
+                # four 512 byte sub pages
+                for i in range(0,3):
+                    if not self.check_ecc_page_512(
+                        page, i,
+                        data[i*512:i*512 + 512],
+                        data[2048 + i*16 +  8],
+                        data[2048 + i*16 +  9],
+                        data[2048 + i*16 + 10],
+                    ):
+                        error_count += 1
         print('Checked %d ECC record and found %d errors' % (count, error_count))
 
     def check_bad_block_page(self, oob):
